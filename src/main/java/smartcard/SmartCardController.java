@@ -14,14 +14,16 @@ import javax.smartcardio.CardException;
 import javax.smartcardio.CardTerminal;
 import javax.smartcardio.TerminalFactory;
 
-public class SmartCardController {
+import org.apache.log4j.Logger;
+
+public class SmartCardController implements SmartCardConstants {
 	private static final String STRING_TO_TEST_SIGNATURE = "A test string to test document signing.\n<tag/>";
 	private boolean isInitialised = false;
 	private String terminalStatus = "Not yet initialised";
-	private File selectedLibraryFile;
+	private File selectedLibraryFile = null;
   TerminalFactory factory;
   List<CardTerminal> terminals;
-  CardTerminal selectedCardTerminal;
+  CardTerminal selectedCardTerminal = null;
   Provider provider;
 	private Card connectedCard;
 	private boolean cardPresent;
@@ -32,8 +34,57 @@ public class SmartCardController {
 	private boolean validCertificate;
 	private String certificateStatus = "";
 	
+	private Status status;
+	private Logger logger;
+	
+	private SmartCardController() {
+		logger = Logger.getLogger(SmartCardController.class);
+		setStatus(new Status());
+	}
+
 	public static SmartCardController getInstance() {
 		return new SmartCardController();
+	}
+
+	public void initialise() {
+		factory = TerminalFactory.getDefault();
+    try {
+    	getProvider();
+    	selecteATerminal();
+   		selectAppropriateDll();
+    	isInitialised = true;
+    	lookForACard();
+		} catch (CardException e) {
+			terminals = new ArrayList<CardTerminal>();
+			terminalStatus = "FAILED: CardException thrown - " + e.getMessage();
+			return;
+		} catch (SmartCardControllerException e) {
+			terminals = new ArrayList<CardTerminal>();
+			terminalStatus = "FAILED: " + e.getMessage();
+			return;
+		} catch (SmartCardException e) {
+			certificateStatus = "FAILED: Smart Card Keystore Exception" + e.getMessage();
+			return;
+		}
+	}
+	
+	
+	private void selectAppropriateDll() {
+		if (hasATerminal()) {
+			if (status.isAcos()) {
+				selectedLibraryFile = Configuration.getInstance().getDllForAcos();
+			} else {
+				logger.error("No dll available for this type of terminal");
+				selectedLibraryFile = null;
+			}
+		} else {
+			selectedLibraryFile = null;
+		}
+		
+	}
+
+	private boolean hasATerminal() {
+		return null != selectedCardTerminal;
 	}
 
 	public void setLibraryFile(File libraryFile) {
@@ -86,14 +137,33 @@ public class SmartCardController {
 	}
 
 	private void selecteATerminal() throws CardException {
+		logger.info("Getting terminal...");
 		List<CardTerminal> terminals = factory.terminals().list();
 		if (null == terminals || terminals.size() == 0) {
-			terminalStatus = "No terminals detected";
-			return;
+			status.setCurrentStatus(Status.NO_TERMINAL);
+			status.setCurrentTerminal("Not found");
+			selectedCardTerminal = null;
+			logger.info("No terminals detected");
 		}
-		selectedCardTerminal = terminals.get(0);
-		terminalStatus = "Selected first terminal";
+		selectedCardTerminal = findBestTerminal(terminals);
+		status.setCurrentStatus(TERMINAL_FOUND);
+		logger.info("Selected terminal \"" + selectedCardTerminal.getName() + "\"");
 	}
+
+	private CardTerminal findBestTerminal(List<CardTerminal> terminals) {
+		for (CardTerminal cardTerminal : terminals) {
+			String terminalName = cardTerminal.getName();
+			if (terminalName.contains("ACS CCID USB Reader")) {
+				status.setCurrentTerminal(ACOS);
+				return cardTerminal;
+			}
+		}		
+		System.out.println("Couldn't find what I wanted so I shall just pick the first terminal I found");
+		CardTerminal firstTerminal = terminals.get(0);
+		status.setCurrentTerminal(firstTerminal.getName());
+		return firstTerminal;
+	}
+
 
 	private void getProvider() {
   	provider = factory.getProvider();
@@ -142,6 +212,9 @@ public class SmartCardController {
 		try {
 			cardPresent = selectedCardTerminal.isCardPresent();
 			cardPresentStatus = cardPresent?"Found a card":"No card found";
+			if (cardPresent) {
+				status.setCurrentStatus(CARD_PRESENT);
+			}
 		} catch (CardException e) {
 			cardPresent = false;
 			cardPresentStatus = "Can't determine if a card is present";
@@ -212,5 +285,19 @@ public class SmartCardController {
 			}
 		}
 		return signature;
+	}
+
+	public void shutdown() {
+		//TODO Shut down in an orderly fashion
+		System.exit(0);             
+		
+	}
+
+	public Status getStatus() {
+		return status;
+	}
+
+	public void setStatus(Status status) {
+		this.status = status;
 	}
 }

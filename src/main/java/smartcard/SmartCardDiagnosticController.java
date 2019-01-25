@@ -105,8 +105,19 @@ public class SmartCardDiagnosticController {
 		if (null == terminals || terminals.size() == 0) {
 			reportFatalProblemAndGiveUp("No terminals detected");
 		}
-		selectedCardTerminal = terminals.get(0);
+		selectedCardTerminal = findBestTerminal(terminals);//  
 		System.out.println("Selected terminal \"" + selectedCardTerminal.getName() + "\"");
+	}
+
+	private CardTerminal findBestTerminal(List<CardTerminal> terminals) {
+		for (CardTerminal cardTerminal : terminals) {
+			String terminalName = cardTerminal.getName();
+			if (terminalName.contains("ACS CCID USB Reader")) {
+				return cardTerminal;
+			}
+		}		
+		System.out.println("Couldn't find what I wanted so I shall just pick the first terminal I found");
+		return terminals.get(0);
 	}
 
 	private void lookForACard() {
