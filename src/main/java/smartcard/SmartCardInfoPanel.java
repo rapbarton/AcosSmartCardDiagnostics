@@ -71,8 +71,8 @@ public class SmartCardInfoPanel extends JPanel {
 	}
 
 	protected void doRefreshAction() {
-		smartCardController.setLibraryFile((File) dllList.getSelectedObjects()[0]);
-		smartCardController.connectToCardAndFindKeys();
+//		smartCardController.setLibraryFile((File) dllList.getSelectedObjects()[0]);
+//		smartCardController.connectToCardAndFindKeys();
 		updateFieldsFromSmartCardController();
 	}
 

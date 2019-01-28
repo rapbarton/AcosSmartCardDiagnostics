@@ -1,29 +1,26 @@
 package smartcard;
 
-import java.awt.BorderLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.io.File;
-
 import javax.swing.JButton;
-import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
+import javax.swing.SwingConstants;
 
 public class ToolsPanel extends JPanel {
 	private static final long serialVersionUID = 2803699942090873875L;
 
 	private JButton refreshButton;
+	private JButton connectButton;
 	private JButton signTestStringButton;
-	private JComboBox<File> dllList;
 	private JTextField terminalStatusField;
-	private JTextField providerField;
 	private SmartCardController smartCardController;
 	private JTextField cardPresentStatusField;
 	private JTextField cardConnectedStatusField;
 	private JTextField certificateStatusField;
 	private JTextField signatureField;
+	private JLabel cardPicture;
 
 	
 	public ToolsPanel () {
@@ -35,6 +32,12 @@ public class ToolsPanel extends JPanel {
 		initControllers();
 		initLayout();
 		initActions();
+		smartCardController.getStatus().addStatusChangeListener(new StatusChangeListener() {
+			public void actionPerformed(ActionEvent e) {
+				doRefreshAction();
+			}
+		});
+		doRefreshAction();
 	}
 
 	private void initControllers() {
@@ -42,15 +45,18 @@ public class ToolsPanel extends JPanel {
 	}
 
 	private void initLayout() {
-		add("vtop", new JLabel("Information"));
-		providerField = createJTextField("Provider");
+		add("vtop hfill", new JLabel("<html><h1>Prescribing Card Diagnostics</h1>"));
+		cardPicture = new JLabel("");
+		cardPicture.setAlignmentY(SwingConstants.RIGHT);
+		add("br tab", cardPicture);
 		terminalStatusField = createJTextField("Terminal Status");
 		cardPresentStatusField = createJTextField("Card in slot");
 		cardConnectedStatusField = createJTextField("Card connection");
 		certificateStatusField = createJTextField("Certificate");
-		add("br", refreshButton = new JButton("Refresh"));
+		//add("br", refreshButton = new JButton("Refresh"));
+		add("br", connectButton = new JButton("Open keystore"));
+		add("tab", signTestStringButton = new JButton("Test signing using card"));
 		signatureField = createJTextField("Resultant Signature");
-		add("br", signTestStringButton = new JButton("Sign using private key"));
 	}
 
 	private JTextField createJTextField(String nameOfField) {
@@ -62,9 +68,14 @@ public class ToolsPanel extends JPanel {
 	}
 
 	private void initActions() {
-		refreshButton.addActionListener(new ActionListener() {
+//		refreshButton.addActionListener(new ActionListener() {
+//			public void actionPerformed(ActionEvent arg0) {
+//				doRefreshAction();
+//			}
+//		});
+		connectButton.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
-				doRefreshAction();
+				doConnectAction();
 			}
 		});
 		signTestStringButton.addActionListener(new ActionListener() {
@@ -72,10 +83,11 @@ public class ToolsPanel extends JPanel {
 				doSigningAction();
 			}
 		});
+		
 	}
 
 	protected void doRefreshAction() {
-		smartCardController.connectToCardAndFindKeys();
+		//smartCardController.connectToCardAndFindKeys();
 		updateFieldsFromSmartCardController();
 	}
 
@@ -84,10 +96,19 @@ public class ToolsPanel extends JPanel {
 		cardPresentStatusField.setText(smartCardController.getCardPresentStatus());
 		cardConnectedStatusField.setText(smartCardController.getCardConnectedStatus());
 		certificateStatusField.setText(smartCardController.getCertificateStatus());
-		providerField.setText(smartCardController.getProviderName());
+		cardPicture.setIcon(smartCardController.getIconForSelectedTerminal());
+		cardPicture.setText(smartCardController.getNameOfSelectedTerminal());
+		boolean loggedIn = smartCardController.isKeyStoreOpen();
+		signTestStringButton.setEnabled(loggedIn);
+		connectButton.setEnabled(!loggedIn && smartCardController.isCardPresent());
 		signatureField.setText("");
 	}
 	
+	protected void doConnectAction() {
+		smartCardController.openKeystore();
+		updateFieldsFromSmartCardController();
+	}
+
 	protected void doSigningAction() {
 		if (!smartCardController.isInitialised()) {
 			signatureField.setText("Not initialised");

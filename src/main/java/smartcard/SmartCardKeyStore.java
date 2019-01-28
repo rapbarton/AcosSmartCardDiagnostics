@@ -44,20 +44,24 @@ public class SmartCardKeyStore {
 	private String status = "Not initialised";
 	private String certificateStatus = "";
 	private static final String DIGITAL_SIGNATURE_ALGORITHM_NAME = "SHA1withRSA";
+	Provider pkcs11Provider = null;
+	private boolean loaded;
 
 	public SmartCardKeyStore(String pkcs11LibraryFile) {
 		String pkcs11ConfigSettings = "name = SmartCard1 " + "library = " + pkcs11LibraryFile;
+		loaded = false;
 		try {
 			byte[] pkcs11ConfigBytes = pkcs11ConfigSettings.getBytes();
 			ByteArrayInputStream confStream = new ByteArrayInputStream(pkcs11ConfigBytes);
-			Provider pkcs11Provider = new sun.security.pkcs11.SunPKCS11(confStream);
+			pkcs11Provider = new sun.security.pkcs11.SunPKCS11(confStream);
 			Security.addProvider(pkcs11Provider);
 			builder = KeyStore.Builder.newInstance("PKCS11", pkcs11Provider, createPinNumberDialog());
 			ks = builder.getKeyStore();
 			ks.load(null, null);
+			loaded = true;
 			loadPrivateKeyAndCertChain();
 			status = "Card OK";
-			certificateStatus = "Certificate Loaded CN:" + getCertificateCommonName();
+			certificateStatus = getCertificateCommonName();
 		} catch (KeyStoreException kse) {
 			reportFatalProblemAndGiveUp("KeyStoreException: " + kse.getMessage());
 		} catch (NoSuchAlgorithmException e) {
@@ -239,6 +243,11 @@ public class SmartCardKeyStore {
 	}
 
 	public void reset() {
+		Security.removeProvider(pkcs11Provider.getName());
 		ks = null;
 	}	
+	
+	public boolean isKeystoreLoaded() {
+		return loaded;
+	}
 }

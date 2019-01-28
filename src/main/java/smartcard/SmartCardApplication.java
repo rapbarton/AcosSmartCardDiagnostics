@@ -1,6 +1,7 @@
 package smartcard;
 
 import java.awt.AWTException;
+import java.awt.Color;
 import java.awt.GraphicsConfiguration;
 import java.awt.GraphicsDevice;
 import java.awt.GraphicsEnvironment;
@@ -8,6 +9,7 @@ import java.awt.Image;
 import java.awt.Insets;
 import java.awt.Point;
 import java.awt.Rectangle;
+import java.awt.SystemColor;
 import java.awt.SystemTray;
 import java.awt.Toolkit;
 import java.awt.TrayIcon;
@@ -15,8 +17,11 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
+import java.awt.event.MouseMotionListener;
 import java.util.ArrayList;
 
+import javax.swing.JComponent;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPopupMenu;
@@ -43,12 +48,9 @@ public class SmartCardApplication {
 		logger = Logger.getLogger(this.getClass());
 		controller = SmartCardController.getInstance();
 		initialiseTray();
-		controller.getStatus().addStatusChangeListener(new StatusChangeListener() {
-			public void actionPerformed(ActionEvent e) {
-				updateIcon(e);
-			}
-		});
+		registerAsListener();
 		controller.initialise();
+		logger.info("Smart Card Application started");
 	}
 	
 	private void initialiseTray () {
@@ -62,31 +64,53 @@ public class SmartCardApplication {
     systemTray = SystemTray.getSystemTray();
     final JPopupMenu trayPopupMenu = new JPopupMenu();
     ImageHelper imageHelper = new ImageHelper();
+    Color menuHighlightColour = new Color(0x91C9F7);
+    MouseListener highlighter = new MouseAdapter() {
+			public void mouseExited(MouseEvent e) {
+				JMenuItem item = (JMenuItem)e.getSource();
+				item.setOpaque(false);
+				item.repaint();
+			}
+			public void mouseEntered(MouseEvent e) {
+				JMenuItem item = (JMenuItem)e.getSource();
+				item.setOpaque(true);
+				item.repaint();
+			}
+		};   
+    
     JMenuItem tools = new JMenuItem("Tools", imageHelper.getIcon("Tools16"));
+    tools.setBackground(menuHighlightColour);
     tools.addActionListener(new ActionListener() {
     	public void actionPerformed(ActionEvent e) {
     		trayPopupMenu.setVisible(false);
     		JOptionPane.showMessageDialog(null, new ToolsPanel());         
     	}
-    });     
+    });  
+    tools.addMouseListener(highlighter);
     trayPopupMenu.add(tools);
 
     JMenuItem about = new JMenuItem("About", imageHelper.getIcon("About16"));
+    about.setBackground(menuHighlightColour);
     about.addActionListener(new ActionListener() {
     	public void actionPerformed(ActionEvent e) {
     		trayPopupMenu.setVisible(false);
     		JOptionPane.showMessageDialog(null, new AboutPanel());         
     	}
     });     
+    about.addMouseListener(highlighter);
     trayPopupMenu.add(about);
 
+    trayPopupMenu.addSeparator();
+
     JMenuItem close = new JMenuItem("Close", imageHelper.getIcon("Exit16"));
+    close.setBackground(menuHighlightColour);
     close.addActionListener(new ActionListener() {
       public void actionPerformed(ActionEvent e) {
     		trayPopupMenu.setVisible(false);
     		controller.shutdown();
       }
     });
+    close.addMouseListener(highlighter);
     trayPopupMenu.add(close);
 
     trayIcon = new TrayIcon(controller.getStatus().getCurrentStatusImage(), "Prescribing Card");
@@ -108,27 +132,9 @@ public class SmartCardApplication {
       }
 
 			private void showPopup(MouseEvent e) {
-    		Rectangle bounds = getSafeScreenBounds(e.getPoint());
-    		Point point = e.getPoint();
-    		int x = point.x;
-    		int y = point.y;
-    		if (y < bounds.y) {
-    			y = bounds.y;
-    		} else if (y > bounds.y + bounds.height) {
-    			y = bounds.y + bounds.height;
-    		}
-    		if (x < bounds.x) {
-    			x = bounds.x;
-    		} else if (x > bounds.x + bounds.width) {
-    			x = bounds.x + bounds.width;
-    		}
-    		if (x + trayPopupMenu.getPreferredSize().width > bounds.x + bounds.width) {
-    			x = (bounds.x + bounds.width) - trayPopupMenu.getPreferredSize().width;
-    		}
-    		if (y + trayPopupMenu.getPreferredSize().height > bounds.y + bounds.height) {
-    			y = (bounds.y + bounds.height) - trayPopupMenu.getPreferredSize().height;
-    		}
-    		trayPopupMenu.setLocation(x, y);
+				Point eventLocation = e.getPoint();
+				Point popupLocation = getPositionForPopupMenu(eventLocation, trayPopupMenu);
+    		trayPopupMenu.setLocation(popupLocation);
     		trayPopupMenu.setVisible(true);
 			}
     });
@@ -140,73 +146,90 @@ public class SmartCardApplication {
     }
 	}
 
-	protected void updateIcon(ActionEvent e) {
-		Image image = controller.getStatus().getCurrentStatusImage();
-		trayIcon.setImage(image);
+	protected Point getPositionForPopupMenu(Point point, JComponent trayPopupMenu) {
+		Rectangle bounds = getSafeScreenBounds(point);
+		int x = point.x;
+		int y = point.y;
+		if (y < bounds.y) {
+			y = bounds.y;
+		} else if (y > bounds.y + bounds.height) {
+			y = bounds.y + bounds.height;
+		}
+		if (x < bounds.x) {
+			x = bounds.x;
+		} else if (x > bounds.x + bounds.width) {
+			x = bounds.x + bounds.width;
+		}
+		if (x + trayPopupMenu.getPreferredSize().width > bounds.x + bounds.width) {
+			x = (bounds.x + bounds.width) - trayPopupMenu.getPreferredSize().width;
+		}
+		if (y + trayPopupMenu.getPreferredSize().height > bounds.y + bounds.height) {
+			y = (bounds.y + bounds.height) - trayPopupMenu.getPreferredSize().height;
+		}
+		return new Point(x, y);
 	}
 
+	private void registerAsListener() {
+		controller.getStatus().addStatusChangeListener(new StatusChangeListener() {
+			public void actionPerformed(ActionEvent e) {
+				updateTray(e);
+			}
+		});
+	}
 
-	public static Rectangle getSafeScreenBounds(Point pos) {
+	protected void updateTray(ActionEvent e) {
+		Image image = controller.getStatus().getCurrentStatusImage();
+		trayIcon.setImage(image);
+		String statusSummary = controller.getStatus().getStatusAsText();
+		trayIcon.setToolTip(statusSummary);
+	}
 
+	private Rectangle getSafeScreenBounds(Point pos) {
     Rectangle bounds = getScreenBoundsAt(pos);
     Insets insets = getScreenInsetsAt(pos);
-
     bounds.x += insets.left;
     bounds.y += insets.top;
     bounds.width -= (insets.left + insets.right);
     bounds.height -= (insets.top + insets.bottom);
-
     return bounds;
-
 	}	
 
-	public static Insets getScreenInsetsAt(Point pos) {
+	private Insets getScreenInsetsAt(Point pos) {
     GraphicsDevice gd = getGraphicsDeviceAt(pos);
     Insets insets = null;
     if (gd != null) {
-        insets = Toolkit.getDefaultToolkit().getScreenInsets(gd.getDefaultConfiguration());
+      insets = Toolkit.getDefaultToolkit().getScreenInsets(gd.getDefaultConfiguration());
     }
     return insets;
 	}
 
-	public static Rectangle getScreenBoundsAt(Point pos) {
+	private Rectangle getScreenBoundsAt(Point pos) {
     GraphicsDevice gd = getGraphicsDeviceAt(pos);
     Rectangle bounds = null;
     if (gd != null) {
-        bounds = gd.getDefaultConfiguration().getBounds();
+      bounds = gd.getDefaultConfiguration().getBounds();
     }
     return bounds;
 	}
 
-	public static GraphicsDevice getGraphicsDeviceAt(Point pos) {
-
+	private GraphicsDevice getGraphicsDeviceAt(Point pos) {
     GraphicsDevice device = null;
-
     GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
     GraphicsDevice lstGDs[] = ge.getScreenDevices();
-
     ArrayList<GraphicsDevice> lstDevices = new ArrayList<GraphicsDevice>(lstGDs.length);
-
     for (GraphicsDevice gd : lstGDs) {
     	GraphicsConfiguration gc = gd.getDefaultConfiguration();
     	Rectangle screenBounds = gc.getBounds();
-
     	if (screenBounds.contains(pos)) {
     		lstDevices.add(gd);
     	}
     }
-
     if (lstDevices.size() > 0) {
     	device = lstDevices.get(0);
     } else {
     	device = ge.getDefaultScreenDevice();
     }
     return device;
-
 	}
-	
-	
-	
-	
 	
 }

@@ -9,7 +9,7 @@ import javax.swing.SwingUtilities;
 
 public class Status implements SmartCardConstants {
 	private int currentStatus = NOT_INITIALISED;
-	private String currentTerminal = "None";
+	private String currentTerminal = TERMINAL_TYPE_NONE;
 
 	private ArrayList<StatusChangeListener> statusChangeListeners;
 	
@@ -32,13 +32,13 @@ public class Status implements SmartCardConstants {
 		String imageName;
 		switch (getCurrentStatus()) {
 			case NOT_INITIALISED: 
+			case TERMINAL_FOUND:
 			default: 
 				imageName = "smart-card-inactive-24";
 				break;
 			case NO_TERMINAL:
 				imageName = "smart-card-error-24";
 				break;
-			case TERMINAL_FOUND:
 			case CARD_PRESENT:
 				imageName = "smart-card-24";
 				break;
@@ -50,7 +50,7 @@ public class Status implements SmartCardConstants {
 		switch (getCurrentStatus()) {
 			case NOT_INITIALISED: return "Not initialised";
 			case NO_TERMINAL: return "No terminal";
-			case TERMINAL_FOUND: return "Terminal detected";
+			case TERMINAL_FOUND: return "Waiting for card";
 			case CARD_PRESENT: return "Card present";
 			default: return "?";
 		}		
@@ -65,7 +65,7 @@ public class Status implements SmartCardConstants {
 	}
 
 	public boolean isAcos() {
-		return currentTerminal.equals(ACOS);
+		return currentTerminal.equals(TERMINAL_TYPE_ACOS);
 	}
 
 	public void addStatusChangeListener(StatusChangeListener statusChangeListener ) {
