@@ -1,4 +1,4 @@
-package smartcard;
+package net.mohc.smartcard;
 
 import java.awt.Component;
 
@@ -8,6 +8,8 @@ import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.event.AncestorEvent;
 import javax.swing.event.AncestorListener;
+
+import net.mohc.utils.RiverLayout;
 
 public class PinDialog {
 

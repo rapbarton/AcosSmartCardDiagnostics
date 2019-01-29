@@ -1,26 +1,17 @@
-package smartcard;
+package net.mohc.smartcard;
 
 import java.awt.AWTException;
 import java.awt.Color;
-import java.awt.GraphicsConfiguration;
-import java.awt.GraphicsDevice;
-import java.awt.GraphicsEnvironment;
 import java.awt.Image;
-import java.awt.Insets;
 import java.awt.Point;
 import java.awt.Rectangle;
-import java.awt.SystemColor;
 import java.awt.SystemTray;
-import java.awt.Toolkit;
 import java.awt.TrayIcon;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
-import java.awt.event.MouseMotionListener;
-import java.util.ArrayList;
-
 import javax.swing.JComponent;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
@@ -29,10 +20,15 @@ import javax.swing.UIManager;
 
 import org.apache.log4j.Logger;
 
+import net.mohc.comms.CommsController;
+import net.mohc.comms.CommsException;
+import net.mohc.utils.GraphicsToolkit;
+
 
 public class SmartCardApplication {
 	private Logger logger;
 	private SystemTray systemTray;
+	GraphicsToolkit graphicesToolkit;
 	private SmartCardController controller;
 	TrayIcon trayIcon;
 	
@@ -41,11 +37,15 @@ public class SmartCardApplication {
 			new SmartCardApplication();
 		} catch (Exception e) {
 			Logger.getLogger(SmartCardApplication.class).fatal("A fatal error has occured, this application will close. The cause:" + e.getMessage());
+			JOptionPane.showMessageDialog(null, "An error has occured, the cause is " + e.getMessage(), "Something Went Wrong...", JOptionPane.ERROR_MESSAGE);
+			System.exit(-1);
 		}
 	}
 	
-	private SmartCardApplication () {
+	private SmartCardApplication () throws CommsException {
 		logger = Logger.getLogger(this.getClass());
+		CommsController.getInstance().startListening(9311, new SmartCardCommandProcessor());
+		graphicesToolkit = GraphicsToolkit.getInstance();
 		controller = SmartCardController.getInstance();
 		initialiseTray();
 		registerAsListener();
@@ -147,7 +147,7 @@ public class SmartCardApplication {
 	}
 
 	protected Point getPositionForPopupMenu(Point point, JComponent trayPopupMenu) {
-		Rectangle bounds = getSafeScreenBounds(point);
+		Rectangle bounds = graphicesToolkit.getSafeScreenBounds(point);
 		int x = point.x;
 		int y = point.y;
 		if (y < bounds.y) {
@@ -184,52 +184,5 @@ public class SmartCardApplication {
 		trayIcon.setToolTip(statusSummary);
 	}
 
-	private Rectangle getSafeScreenBounds(Point pos) {
-    Rectangle bounds = getScreenBoundsAt(pos);
-    Insets insets = getScreenInsetsAt(pos);
-    bounds.x += insets.left;
-    bounds.y += insets.top;
-    bounds.width -= (insets.left + insets.right);
-    bounds.height -= (insets.top + insets.bottom);
-    return bounds;
-	}	
-
-	private Insets getScreenInsetsAt(Point pos) {
-    GraphicsDevice gd = getGraphicsDeviceAt(pos);
-    Insets insets = null;
-    if (gd != null) {
-      insets = Toolkit.getDefaultToolkit().getScreenInsets(gd.getDefaultConfiguration());
-    }
-    return insets;
-	}
-
-	private Rectangle getScreenBoundsAt(Point pos) {
-    GraphicsDevice gd = getGraphicsDeviceAt(pos);
-    Rectangle bounds = null;
-    if (gd != null) {
-      bounds = gd.getDefaultConfiguration().getBounds();
-    }
-    return bounds;
-	}
-
-	private GraphicsDevice getGraphicsDeviceAt(Point pos) {
-    GraphicsDevice device = null;
-    GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
-    GraphicsDevice lstGDs[] = ge.getScreenDevices();
-    ArrayList<GraphicsDevice> lstDevices = new ArrayList<GraphicsDevice>(lstGDs.length);
-    for (GraphicsDevice gd : lstGDs) {
-    	GraphicsConfiguration gc = gd.getDefaultConfiguration();
-    	Rectangle screenBounds = gc.getBounds();
-    	if (screenBounds.contains(pos)) {
-    		lstDevices.add(gd);
-    	}
-    }
-    if (lstDevices.size() > 0) {
-    	device = lstDevices.get(0);
-    } else {
-    	device = ge.getDefaultScreenDevice();
-    }
-    return device;
-	}
 	
 }

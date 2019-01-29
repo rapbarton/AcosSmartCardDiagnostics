@@ -1,4 +1,4 @@
-package smartcard;
+package net.mohc.smartcard;
 
 public interface SmartCardConstants {
 	public static final int NOT_INITIALISED = 0;

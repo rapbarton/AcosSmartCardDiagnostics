@@ -1,4 +1,4 @@
-package smartcard;
+package net.mohc.smartcard;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -29,6 +29,7 @@ import javax.security.auth.callback.CallbackHandler;
 import javax.security.auth.callback.PasswordCallback;
 import javax.security.auth.callback.UnsupportedCallbackException;
 
+import net.mohc.utils.Base64;
 import sun.security.x509.X509CertInfo;
 
 public class SmartCardKeyStore {

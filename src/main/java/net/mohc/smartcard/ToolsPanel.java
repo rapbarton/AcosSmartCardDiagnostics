@@ -1,4 +1,4 @@
-package smartcard;
+package net.mohc.smartcard;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -7,6 +7,8 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.SwingConstants;
+
+import net.mohc.utils.RiverLayout;
 
 public class ToolsPanel extends JPanel {
 	private static final long serialVersionUID = 2803699942090873875L;

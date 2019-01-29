@@ -1,4 +1,4 @@
-package smartcard;
+package net.mohc.utils;
 
 public class Base64
 {

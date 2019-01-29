@@ -1,4 +1,4 @@
-package smartcard;
+package net.mohc.smartcard;
 
 import java.awt.BorderLayout;
 import java.util.Calendar;
