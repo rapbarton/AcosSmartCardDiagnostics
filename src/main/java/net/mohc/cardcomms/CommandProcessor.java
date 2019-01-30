@@ -1,4 +1,4 @@
-package net.mohc.comms;
+package net.mohc.cardcomms;
 
 /**
  * This is an interface that marks a class as being a command processor for

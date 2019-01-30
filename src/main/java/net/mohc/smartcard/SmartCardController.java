@@ -391,6 +391,30 @@ public class SmartCardController implements SmartCardConstants {
 		return signature;
 	}
 
+	public String doSignatureInSession(String sessionID, String dataToSign) {
+		String signature = "";
+		if (null == smartCardKeyStore) {
+			signature = "ERROR: Keystore is not open";
+		} else if (!smartCardKeyStore.isSessionMatch(sessionID)) {
+			signature = "ERROR: Keystore is not open for this session";
+		} else {
+			try {
+				signature = smartCardKeyStore.signDocument(dataToSign);
+			} catch (GeneralSecurityException e) {
+				signature = "ERROR: " + e.getMessage();
+			}	catch (java.security.ProviderException pe) {
+				Throwable cause = pe.getCause();
+				if (null != cause && cause instanceof sun.security.pkcs11.wrapper.PKCS11Exception) {
+					sun.security.pkcs11.wrapper.PKCS11Exception pkCause = (sun.security.pkcs11.wrapper.PKCS11Exception) cause;
+					signature = "ERROR: PKCS11Exception (Error Code " + pkCause.getErrorCode() + ") " + pkCause.getMessage();
+				} else {
+					signature = "ERROR: Provider exception, " + pe.getMessage();
+				}
+			}
+		}
+		return signature;
+	}
+
 	public void shutdown() {
 		//TODO Shut down in an orderly fashion
 		System.exit(0);             
@@ -428,5 +452,9 @@ public class SmartCardController implements SmartCardConstants {
 
 	public boolean isCardPresent() {
 		return status.getCurrentStatus() == Status.CARD_PRESENT;
+	}
+
+	public String getSessionId() {
+		return smartCardKeyStore.getSessionId();
 	}
 }

@@ -1,4 +1,4 @@
-package net.mohc.comms;
+package net.mohc.cardcomms;
 
 import java.awt.*;
 import java.awt.event.*;
@@ -72,23 +72,23 @@ public class RemoteConsoleFrame extends JFrame
     jTextFieldConnected.setText(IDLE);
     jTextArea1.setSelectionStart(0);
     jTextArea1.setText("Enter command text here...");
-    jButton1.setToolTipText("Direct script entry");
-    jButton1.setText("SC");
+    jButton1.setToolTipText("Card present status");
+    jButton1.setText("Card Inserted");
     jButton1.addActionListener(new java.awt.event.ActionListener() {
       public void actionPerformed(ActionEvent e) {
         jButton1_actionPerformed(e);
       }
     });
-    jButton2.setToolTipText("Macro Command");
-    jButton2.setActionCommand("MC");
-    jButton2.setText("MC");
+    jButton2.setToolTipText("Certificate Status");
+    jButton2.setActionCommand("Certificate Detail");
+    jButton2.setText("Certificate");
     jButton2.addActionListener(new java.awt.event.ActionListener() {
       public void actionPerformed(ActionEvent e) {
         jButton2_actionPerformed(e);
       }
     });
-    jButton3.setToolTipText("Macro file");
-    jButton3.setText("MF");
+    jButton3.setToolTipText("Log in to card");
+    jButton3.setText("Login");
     jButton3.addActionListener(new java.awt.event.ActionListener() {
       public void actionPerformed(ActionEvent e) {
         jButton3_actionPerformed(e);
@@ -157,18 +157,17 @@ public class RemoteConsoleFrame extends JFrame
     }
   }
 
+  void jButton1_actionPerformed(ActionEvent e) {
+    jTextArea1.setText("CardPresentStatus:");
+  }
+
   void jButton2_actionPerformed(ActionEvent e) {
-    jTextArea1.setText("MacroCommand:AndSignals");
+    jTextArea1.setText("CertificateStatus:");
   }
 
   void jButton3_actionPerformed(ActionEvent e) {
-    jTextArea1.setText("MacroFile:/home/rob/dev/tte/macros/Test.ttm");
+    jTextArea1.setText("Connect:331627");
   }
-
-  void jButton1_actionPerformed(ActionEvent e) {
-    jTextArea1.setText("Script:\nSystem.out.println(\"My Script\");\n");
-  }
-
 
   public void processReply (String sMsg) {
     if (sMsg.equals("TEST OK")) {

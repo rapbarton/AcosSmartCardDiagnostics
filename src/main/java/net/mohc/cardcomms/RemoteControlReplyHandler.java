@@ -1,4 +1,4 @@
-package net.mohc.comms;
+package net.mohc.cardcomms;
 
 /**
  * This is an interface that defines a method to handle the processing of a

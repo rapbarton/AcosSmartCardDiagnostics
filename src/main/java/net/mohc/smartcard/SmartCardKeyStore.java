@@ -23,6 +23,7 @@ import java.security.cert.X509Certificate;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Enumeration;
+import java.util.UUID;
 
 import javax.security.auth.callback.Callback;
 import javax.security.auth.callback.CallbackHandler;
@@ -47,8 +48,10 @@ public class SmartCardKeyStore {
 	private static final String DIGITAL_SIGNATURE_ALGORITHM_NAME = "SHA1withRSA";
 	Provider pkcs11Provider = null;
 	private boolean loaded;
+	private Session session;
 
 	public SmartCardKeyStore(String pkcs11LibraryFile) {
+		session = new Session();
 		String pkcs11ConfigSettings = "name = SmartCard1 " + "library = " + pkcs11LibraryFile;
 		loaded = false;
 		try {
@@ -229,11 +232,18 @@ public class SmartCardKeyStore {
 				for (Callback callback : callbacks) {
 					if (callback instanceof PasswordCallback) {
 						PasswordCallback pwdCallback = (PasswordCallback) callback;
-						char[] pin = PinDialog.showPinDialog(null);
-						if (pin != null) {
+						char[] pin;
+						if (session.isValid()) {
+							pin = session.getPin();
+						} else {
+							pin = PinDialog.showPinDialog(null);
+							startSession(pin);
+						}
+						if (pin != null && pin.length >= 4) {
 							pwdCallback.setPassword(pin);
 						} else {
 							pwdCallback.clearPassword();
+							session.setValid(false);
 							throw new IOException("Cancelled");
 						}
 					}
@@ -243,6 +253,19 @@ public class SmartCardKeyStore {
 		return callbackHandlerProtection;
 	}
 
+	protected boolean startSession(char[] pin) {
+		if (pin != null && pin.length >= 4) {
+			UUID uuid = UUID.randomUUID();
+			session.setSessionId(uuid.toString());
+			session.setPin(pin);
+			session.setValid(true);
+		} else {
+			session.setValid(false);
+			session.setSessionId("");
+		}
+		return session.isValid();
+	}
+	
 	public void reset() {
 		Security.removeProvider(pkcs11Provider.getName());
 		ks = null;
@@ -250,5 +273,17 @@ public class SmartCardKeyStore {
 	
 	public boolean isKeystoreLoaded() {
 		return loaded;
+	}
+
+	public String getSessionId() {
+		if (loaded && session.isValid()) {
+			return session.getSessionId();
+		}
+		return "";
+	}
+
+	public boolean isSessionMatch(String proposedSessionID) {
+		if (null == proposedSessionID || proposedSessionID.isEmpty()) return false;
+		return proposedSessionID.equals(getSessionId());
 	}
 }

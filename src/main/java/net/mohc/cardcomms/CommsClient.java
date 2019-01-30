@@ -1,4 +1,4 @@
-package net.mohc.comms;
+package net.mohc.cardcomms;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;

@@ -20,8 +20,8 @@ import javax.swing.UIManager;
 
 import org.apache.log4j.Logger;
 
-import net.mohc.comms.CommsController;
-import net.mohc.comms.CommsException;
+import net.mohc.cardcomms.CommsController;
+import net.mohc.cardcomms.CommsException;
 import net.mohc.utils.GraphicsToolkit;
 
 
