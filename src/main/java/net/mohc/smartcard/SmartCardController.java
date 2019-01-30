@@ -329,7 +329,7 @@ public class SmartCardController implements SmartCardConstants {
 
 	private void addDllsToArray(Vector<File> array, File locationOfDlls, int safeCount) {
 		if (array.size() >= 100 || safeCount > 20) return;//Ensure no loops - no deeper than 20 directories
-		System.out.println("Searching in " + locationOfDlls);
+		logger.info("Searching in " + locationOfDlls);
 		if (locationOfDlls.exists() && locationOfDlls.isDirectory()) {
 			File[] allFiles = locationOfDlls.listFiles();
 			if (null != allFiles && allFiles.length > 0) {
@@ -355,7 +355,7 @@ public class SmartCardController implements SmartCardConstants {
 		}
 	}
 	
-	private void closeKeystore() {
+	public void closeKeystore() {
 		if (null != smartCardKeyStore) {
 	  	smartCardKeyStore.reset();
 	  	smartCardKeyStore = null;
@@ -391,12 +391,14 @@ public class SmartCardController implements SmartCardConstants {
 		return signature;
 	}
 
-	public String doSignatureInSession(String sessionID, String dataToSign) {
+	public String doSignatureInSession(String sessionID, String prescReg, String dataToSign) {
 		String signature = "";
 		if (null == smartCardKeyStore) {
 			signature = "ERROR: Keystore is not open";
 		} else if (!smartCardKeyStore.isSessionMatch(sessionID)) {
 			signature = "ERROR: Keystore is not open for this session";
+		} else if (!smartCardKeyStore.isGMCMatch(prescReg)) {
+			signature = "ERROR: Keystore is not intended for this prescriber";
 		} else {
 			try {
 				signature = smartCardKeyStore.signDocument(dataToSign);
@@ -457,4 +459,5 @@ public class SmartCardController implements SmartCardConstants {
 	public String getSessionId() {
 		return smartCardKeyStore.getSessionId();
 	}
+
 }

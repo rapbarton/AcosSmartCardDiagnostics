@@ -55,15 +55,16 @@ public class SmartCardCommandProcessor implements CommandProcessor {
   public String commandSign (String sData) {
   	String result = "Error: Bad arguments in request";
   	String[] arguments = sData.split(":");
-  	if (arguments.length == 2) {
+  	if (arguments.length == 3) {
   		String sessionID = arguments[0];
-  		String dataToSign = arguments[1];
-  		result = controller.doSignatureInSession(sessionID, dataToSign);
+  		String prescReg = arguments[1];
+  		String dataToSign = arguments[2];
+  		result = controller.doSignatureInSession(sessionID, prescReg, dataToSign);
   	}  	
   	return result;
   }
   
-  public String commandExit (String sData) {
+  public String commandQuit (String sData) {
   	if (sData.equalsIgnoreCase("shutdown")) {
   		Timer timer = new Timer(1000,new ActionListener() {
 				@Override
@@ -73,6 +74,9 @@ public class SmartCardCommandProcessor implements CommandProcessor {
 			});
   		timer.start();
   		return "Closing Down";
+  	} else if (sData.equalsIgnoreCase("signout")) {
+			controller.closeKeystore();
+   		return "Session closed";
   	} else {
   		return "Command ignored due to incorrect argument";
   	}

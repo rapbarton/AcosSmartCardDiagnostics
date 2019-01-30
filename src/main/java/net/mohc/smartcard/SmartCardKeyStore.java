@@ -29,8 +29,12 @@ import javax.security.auth.callback.Callback;
 import javax.security.auth.callback.CallbackHandler;
 import javax.security.auth.callback.PasswordCallback;
 import javax.security.auth.callback.UnsupportedCallbackException;
+import javax.security.auth.login.LoginException;
+
+import org.apache.log4j.Logger;
 
 import net.mohc.utils.Base64;
+import sun.security.pkcs11.SunPKCS11;
 import sun.security.x509.X509CertInfo;
 
 public class SmartCardKeyStore {
@@ -44,13 +48,15 @@ public class SmartCardKeyStore {
 	private X509Certificate[] currentX509CertificateChain;
 
 	private String status = "Not initialised";
-	private String certificateStatus = "";
+	private String certificateCN = "";
 	private static final String DIGITAL_SIGNATURE_ALGORITHM_NAME = "SHA1withRSA";
 	Provider pkcs11Provider = null;
 	private boolean loaded;
 	private Session session;
+	private Logger logger;
 
 	public SmartCardKeyStore(String pkcs11LibraryFile) {
+		logger = Logger.getLogger(this.getClass());
 		session = new Session();
 		String pkcs11ConfigSettings = "name = SmartCard1 " + "library = " + pkcs11LibraryFile;
 		loaded = false;
@@ -59,13 +65,28 @@ public class SmartCardKeyStore {
 			ByteArrayInputStream confStream = new ByteArrayInputStream(pkcs11ConfigBytes);
 			pkcs11Provider = new sun.security.pkcs11.SunPKCS11(confStream);
 			Security.addProvider(pkcs11Provider);
-			builder = KeyStore.Builder.newInstance("PKCS11", pkcs11Provider, createPinNumberDialog());
+			ProtectionParameter pinDialogue = createPinNumberDialog(); 
+			builder = KeyStore.Builder.newInstance("PKCS11", pkcs11Provider, pinDialogue);
 			ks = builder.getKeyStore();
+			if (!session.isValid()) {
+				logger.warn("Original keystore returned");
+				((SunPKCS11) pkcs11Provider ).logout();
+				pkcs11Provider.clear();
+				Security.removeProvider(pkcs11Provider.getName());
+				confStream = new ByteArrayInputStream(pkcs11ConfigBytes);
+				pkcs11Provider = new sun.security.pkcs11.SunPKCS11(confStream);
+				Security.addProvider(pkcs11Provider);
+				builder = KeyStore.Builder.newInstance("PKCS11", pkcs11Provider, pinDialogue);
+				ks = builder.getKeyStore();
+				if (!session.isValid()) {
+					reportFatalProblemAndGiveUp("Can't log out of stale session");
+				}
+			}
 			ks.load(null, null);
 			loaded = true;
 			loadPrivateKeyAndCertChain();
 			status = "Card OK";
-			certificateStatus = getCertificateCommonName();
+			certificateCN = getCertificateCommonName();
 		} catch (KeyStoreException kse) {
 			reportFatalProblemAndGiveUp("KeyStoreException: " + kse.getMessage());
 		} catch (NoSuchAlgorithmException e) {
@@ -86,22 +107,30 @@ public class SmartCardKeyStore {
 	
 	public void loadPrivateKeyAndCertChain() throws GeneralSecurityException {
 		Enumeration<?> aliasesEnum = ks.aliases();
+		String alias;
 		if (aliasesEnum.hasMoreElements()) {
-			String alias = (String) aliasesEnum.nextElement();
+			alias = (String) aliasesEnum.nextElement();
 			currentPublicKey = ks.getCertificate(alias).getPublicKey();
 			currentX509Certificate = (X509Certificate) ks.getCertificate(alias);
 			currentPrivateKey = (PrivateKey) ks.getKey(alias, null);
 			currentX509CertificateChain = (X509Certificate[]) ks.getCertificateChain(alias);
+			
 		} else {
 			throw new KeyStoreException("The keystore is empty!");
 		}
 		if (aliasesEnum.hasMoreElements()) {
-			System.out.println("WARNING: More than one certificate!!!");
+			StringBuilder list = new StringBuilder(alias);
+			while (aliasesEnum.hasMoreElements()) {
+				alias = (String) aliasesEnum.nextElement();
+				list.append(",");
+				list.append(alias);
+			}
+			logger.warn("More than one certificate! (" + list + ")");
 		}
 	}
 	
 	private void reportFatalProblemAndGiveUp(String descriptionOfProblem) {
-		System.out.println("ERROR: " + descriptionOfProblem);
+		logger.error(descriptionOfProblem);
 		throw new SmartCardException(descriptionOfProblem);
 	}
 
@@ -169,7 +198,7 @@ public class SmartCardKeyStore {
 			status = "Provider exception: " + pe.getMessage();
 			return false;
 		}
-		status = certificateStatus;
+		status = certificateCN;
 		return true;
 	}
 	
@@ -183,9 +212,9 @@ public class SmartCardKeyStore {
 		}
 		byte[] documentToSign = document.getBytes();
 		Signature signatureAlgorithm = Signature.getInstance(DIGITAL_SIGNATURE_ALGORITHM_NAME);
-		System.out.println("Private key object: " + currentPrivateKey);
+		logger.info("Private key object: " + currentPrivateKey);
 		signatureAlgorithm.initSign(currentPrivateKey);
-		System.out.println("Signature object:" + signatureAlgorithm.toString());
+		logger.info("Signature object:" + signatureAlgorithm.toString());
 		signatureAlgorithm.update(documentToSign);
 		byte[] digitalSignature = signatureAlgorithm.sign();
 		String sSignature = Base64.encodeBytes(digitalSignature) +"";
@@ -267,7 +296,18 @@ public class SmartCardKeyStore {
 	}
 	
 	public void reset() {
+		try {
+			if (pkcs11Provider instanceof SunPKCS11) {
+				SunPKCS11 sunPKCS11 = (SunPKCS11) pkcs11Provider;
+				sunPKCS11.logout();
+			}
+		} catch (LoginException e) {
+			logger.warn("Didn't log out of keystore cleanly");
+		}
+		pkcs11Provider.clear();
 		Security.removeProvider(pkcs11Provider.getName());
+		session.setValid(false);
+		session.setSessionId("");
 		ks = null;
 	}	
 	
@@ -285,5 +325,24 @@ public class SmartCardKeyStore {
 	public boolean isSessionMatch(String proposedSessionID) {
 		if (null == proposedSessionID || proposedSessionID.isEmpty()) return false;
 		return proposedSessionID.equals(getSessionId());
+	}
+
+	public boolean isGMCMatch(String proposedPrescReg) {
+		if (!loaded) return false;
+		String cardPrescReg = getPresciberRegistration();
+		if (cardPrescReg.isEmpty()) return false;
+		return cardPrescReg.equals(proposedPrescReg);
+	}
+
+	public String getPresciberRegistration() {
+		String[] parts = certificateCN.split(":[A-Za-z]*");
+		if (parts.length != 2) return "";
+		return parts[1].trim();
+	}
+
+	public String getPresciberName() {
+		String[] parts = certificateCN.split(":[A-Za-z]*");
+		if (parts.length != 2) return "";
+		return parts[0].trim();
 	}
 }

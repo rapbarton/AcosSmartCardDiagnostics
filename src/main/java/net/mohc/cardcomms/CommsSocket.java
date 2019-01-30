@@ -80,7 +80,7 @@ public class CommsSocket extends Thread {
         continue;
       }
 
-      System.out.println("Connected to: " + so.getInetAddress());
+      logger.info("Connected to: " + so.getInetAddress());
       //Fetch the streams
       try {
         is  = new BufferedInputStream(so.getInputStream());
