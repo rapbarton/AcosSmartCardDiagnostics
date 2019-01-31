@@ -19,6 +19,8 @@ import javax.swing.Timer;
 
 import org.apache.log4j.Logger;
 
+import net.mohc.utils.ImageHelper;
+
 public class SmartCardController implements SmartCardConstants {
 	private static final String STRING_TO_TEST_SIGNATURE = "A test string to test document signing.\n<tag/>";
 	private static final int CONTROL_LOOP_PERIOD = 1000;
@@ -79,6 +81,7 @@ public class SmartCardController implements SmartCardConstants {
 				
 			case TERMINAL_FOUND:
 			case CARD_PRESENT:
+			case SESSION_ACTIVE:
 				if (!isExpectedTerminalStillConnected()) {
 					logger.info("Card reader unplugged");
 					reset();
@@ -116,10 +119,12 @@ public class SmartCardController implements SmartCardConstants {
 				cardPresentStatus = cardPresent?"Found a card":"No card found";
 				if (cardPresent) {
 					if(!cardConnected) {
+						if (isKeyStoreOpen()) {
+							closeKeystore();
+						}
 						connectToCard();
-						closeKeystore();
-					}				
-					status.setCurrentStatus(CARD_PRESENT);
+						status.setCurrentStatus(CARD_PRESENT);
+					}
 				} else {
 					if(cardConnected) {
 						disconnectCard();
@@ -292,6 +297,7 @@ public class SmartCardController implements SmartCardConstants {
 			connectedCard = selectedCardTerminal.connect("*");
 			cardConnected = true;
 			cardConnectedStatus = "Connected";
+			status.setCurrentStatus(SESSION_ACTIVE);
 		} catch (CardException e) {
 			cardConnected = false;
 			cardConnectedStatus = "Can't connect to card: " + e.getMessage();
@@ -349,9 +355,15 @@ public class SmartCardController implements SmartCardConstants {
 
 	public void openKeystore() {
 		if (null == smartCardKeyStore) {
-	  	smartCardKeyStore = new SmartCardKeyStore(getPkcsLibraryFilename());
-	  	validCertificate = smartCardKeyStore.isValid();
-	  	certificateStatus = smartCardKeyStore.getStatus();
+			try {
+		  	smartCardKeyStore = new SmartCardKeyStore(getPkcsLibraryFilename());
+		  	validCertificate = smartCardKeyStore.isValid();
+				certificateStatus = smartCardKeyStore.getStatus();
+				status.setCurrentStatus(SESSION_ACTIVE);
+			} catch (SmartCardException e) {
+				validCertificate = false;
+				certificateStatus = e.getMessage();
+			}
 		}
 	}
 	
@@ -362,6 +374,9 @@ public class SmartCardController implements SmartCardConstants {
 		}
   	validCertificate = false;
   	certificateStatus = "";
+  	if (status.getCurrentStatus() == SESSION_ACTIVE) {
+  		status.setCurrentStatus(CARD_PRESENT);
+  	}
 	}
 	
 	public boolean isKeyStoreOpen () {
@@ -453,11 +468,32 @@ public class SmartCardController implements SmartCardConstants {
 	}
 
 	public boolean isCardPresent() {
-		return status.getCurrentStatus() == Status.CARD_PRESENT;
+		int statusValue = status.getCurrentStatus();
+		return statusValue == Status.CARD_PRESENT || statusValue == Status.SESSION_ACTIVE;
 	}
 
 	public String getSessionId() {
 		return smartCardKeyStore.getSessionId();
+	}
+
+	public String getCardSessionStatus() {
+		if (isKeyStoreOpen()) {
+			if (smartCardKeyStore.hasSession()) {
+				return "Logged in";
+			} else {
+				return "Error reading credentials";
+			}
+		} else {
+			return "Not logged in";
+		}
+	}
+
+	public String getCertificateDetails() {
+		if (isKeyStoreOpen()) {
+			return smartCardKeyStore.getCertificateDetail();
+		} else {
+			return "";
+		}
 	}
 
 }

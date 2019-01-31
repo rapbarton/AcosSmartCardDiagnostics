@@ -20,6 +20,8 @@ import java.security.cert.CertificateExpiredException;
 import java.security.cert.CertificateNotYetValidException;
 import java.security.cert.CertificateParsingException;
 import java.security.cert.X509Certificate;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Enumeration;
@@ -38,6 +40,7 @@ import sun.security.pkcs11.SunPKCS11;
 import sun.security.x509.X509CertInfo;
 
 public class SmartCardKeyStore {
+	private static final String MYSQL_DATE_FORMAT = "yyyy-MM-dd";
 	private KeyStore ks;
 	private KeyStore.Builder builder;
 	private PrivateKey currentPrivateKey;
@@ -84,7 +87,7 @@ public class SmartCardKeyStore {
 			}
 			ks.load(null, null);
 			loaded = true;
-			loadPrivateKeyAndCertChain();
+			loadPrivateKeyAndCertChainWithChoice();
 			status = "Card OK";
 			certificateCN = getCertificateCommonName();
 		} catch (KeyStoreException kse) {
@@ -129,9 +132,35 @@ public class SmartCardKeyStore {
 		}
 	}
 	
+	public void loadPrivateKeyAndCertChainWithChoice() throws GeneralSecurityException {
+		Enumeration<?> aliasesEnum = ks.aliases();
+		ArrayList<String> aliases = new ArrayList<>();
+		while (aliasesEnum.hasMoreElements()) {
+			aliases.add((String) aliasesEnum.nextElement());
+		}
+		if (aliases.isEmpty()) {
+			throw new KeyStoreException("The keystore is empty!");
+		}
+		String alias;
+		if (aliases.size() == 1) {
+			alias = aliases.get(0);
+		} else {
+			logger.warn("More than one certificate!");
+			alias = chooseAlias(aliases);
+		}
+		currentPublicKey = ks.getCertificate(alias).getPublicKey();
+		currentX509Certificate = (X509Certificate) ks.getCertificate(alias);
+		currentPrivateKey = (PrivateKey) ks.getKey(alias, null);
+		currentX509CertificateChain = (X509Certificate[]) ks.getCertificateChain(alias);
+	}
+	
+	private String chooseAlias(ArrayList<String> aliases) {
+		return CertChoiceDialog.showChoices(aliases);
+	}
+
 	private void reportFatalProblemAndGiveUp(String descriptionOfProblem) {
 		logger.error(descriptionOfProblem);
-		throw new SmartCardException(descriptionOfProblem);
+		throw new SmartCardException("Card Error (" + descriptionOfProblem + ")");
 	}
 
 	/**
@@ -303,6 +332,8 @@ public class SmartCardKeyStore {
 			}
 		} catch (LoginException e) {
 			logger.warn("Didn't log out of keystore cleanly");
+		} catch (ProviderException e) {
+			logger.warn("Didn't log out of keystore cleanly - card removed?");
 		}
 		pkcs11Provider.clear();
 		Security.removeProvider(pkcs11Provider.getName());
@@ -320,6 +351,13 @@ public class SmartCardKeyStore {
 			return session.getSessionId();
 		}
 		return "";
+	}
+
+	public boolean hasSession() {
+		if (loaded && session.isValid()) {
+			return !getSessionId().isEmpty();
+		}
+		return false;
 	}
 
 	public boolean isSessionMatch(String proposedSessionID) {
@@ -344,5 +382,23 @@ public class SmartCardKeyStore {
 		String[] parts = certificateCN.split(":[A-Za-z]*");
 		if (parts.length != 2) return "";
 		return parts[0].trim();
+	}
+
+	public String getCertificateDetail() {
+		SimpleDateFormat sdf = new SimpleDateFormat(MYSQL_DATE_FORMAT);
+		StringBuilder response = new StringBuilder();
+		if (isKeystoreLoaded() && hasSession() && null!=currentX509Certificate) {
+			Date from = currentX509Certificate.getNotBefore();
+			Date to = currentX509Certificate.getNotAfter();
+			response.append("validFrom=");
+			response.append(sdf.format(from));
+			response.append(",validTo=");
+			response.append(sdf.format(to));
+			response.append(",prescriberName=");
+			response.append(getPresciberName());
+			response.append(",registration=");
+			response.append(getPresciberRegistration());
+		} 
+		return response.toString();
 	}
 }

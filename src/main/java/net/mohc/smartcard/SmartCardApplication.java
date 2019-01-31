@@ -1,11 +1,14 @@
 package net.mohc.smartcard;
 
 import java.awt.AWTException;
+import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Dimension;
 import java.awt.Image;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.SystemTray;
+import java.awt.Toolkit;
 import java.awt.TrayIcon;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -13,8 +16,10 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import javax.swing.JComponent;
+import javax.swing.JFrame;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
+import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.UIManager;
 
@@ -23,6 +28,7 @@ import org.apache.log4j.Logger;
 import net.mohc.cardcomms.CommsController;
 import net.mohc.cardcomms.CommsException;
 import net.mohc.utils.GraphicsToolkit;
+import net.mohc.utils.ImageHelper;
 
 
 public class SmartCardApplication {
@@ -83,8 +89,10 @@ public class SmartCardApplication {
     tools.addActionListener(new ActionListener() {
     	public void actionPerformed(ActionEvent e) {
     		trayPopupMenu.setVisible(false);
-    		JOptionPane.showMessageDialog(null, new ToolsPanel());         
+    		popUpFrame("Smart Card View", new ToolsPanel());
+    		//JOptionPane.showMessageDialog(null, new ToolsPanel());         
     	}
+
     });  
     tools.addMouseListener(highlighter);
     trayPopupMenu.add(tools);
@@ -94,7 +102,8 @@ public class SmartCardApplication {
     about.addActionListener(new ActionListener() {
     	public void actionPerformed(ActionEvent e) {
     		trayPopupMenu.setVisible(false);
-    		JOptionPane.showMessageDialog(null, new AboutPanel());         
+    		popUpFrame("About Smart Card Application", new AboutPanel());
+    		//JOptionPane.showMessageDialog(null, new AboutPanel());         
     	}
     });     
     about.addMouseListener(highlighter);
@@ -144,6 +153,11 @@ public class SmartCardApplication {
     }catch(AWTException awtException){
       throw new SmartCardApplicationException("Not able to add SmartCard to system tray");
     }
+	}
+
+	private void popUpFrame(String title, JPanel contentPanel) {
+		PopUpFrame.show(title, contentPanel);
+		
 	}
 
 	protected Point getPositionForPopupMenu(Point point, JComponent trayPopupMenu) {

@@ -15,7 +15,7 @@ public class AboutPanel extends JPanel {
 	}
 
 	private void initialise() {
-		JLabel text = new JLabel("<html><h1>Prescribing Card<h1><p>MOHC LTD (c)" + getCurrentYear() + "</p></html>");
+		JLabel text = new JLabel("<html><h1>Smart Card Application</h1><p>Provides OPMS access to prescribing card</p><p>MOHC LTD (c)" + getCurrentYear() + "</p><br/><br/></html>");
 		this.add(text, BorderLayout.CENTER);
 	}
 

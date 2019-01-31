@@ -2,6 +2,8 @@ package net.mohc.smartcard;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.logging.Logger;
+
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -19,7 +21,7 @@ public class ToolsPanel extends JPanel {
 	private JTextField terminalStatusField;
 	private SmartCardController smartCardController;
 	private JTextField cardPresentStatusField;
-	private JTextField cardConnectedStatusField;
+	private JTextField cardSessionStatusField;
 	private JTextField certificateStatusField;
 	private JTextField signatureField;
 	private JLabel cardPicture;
@@ -53,8 +55,8 @@ public class ToolsPanel extends JPanel {
 		add("br tab", cardPicture);
 		terminalStatusField = createJTextField("Terminal Status");
 		cardPresentStatusField = createJTextField("Card in slot");
-		cardConnectedStatusField = createJTextField("Card connection");
-		certificateStatusField = createJTextField("Certificate");
+		cardSessionStatusField = createJTextField("Session");
+		certificateStatusField = createJTextField("Certificate/Status");
 		//add("br", refreshButton = new JButton("Refresh"));
 		add("br", connectButton = new JButton("Open keystore"));
 		add("tab", signTestStringButton = new JButton("Test signing using card"));
@@ -90,13 +92,14 @@ public class ToolsPanel extends JPanel {
 
 	protected void doRefreshAction() {
 		//smartCardController.connectToCardAndFindKeys();
+		Logger.getLogger("REFRESH");
 		updateFieldsFromSmartCardController();
 	}
 
 	private void updateFieldsFromSmartCardController() {
 		terminalStatusField.setText(smartCardController.getTerminalStatus());
 		cardPresentStatusField.setText(smartCardController.getCardPresentStatus());
-		cardConnectedStatusField.setText(smartCardController.getCardConnectedStatus());
+		cardSessionStatusField.setText(smartCardController.getCardSessionStatus());
 		certificateStatusField.setText(smartCardController.getCertificateStatus());
 		cardPicture.setIcon(smartCardController.getIconForSelectedTerminal());
 		cardPicture.setText(smartCardController.getNameOfSelectedTerminal());

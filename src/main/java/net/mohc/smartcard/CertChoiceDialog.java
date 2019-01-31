@@ -1,17 +1,17 @@
 package net.mohc.smartcard;
 
-import java.awt.Component;
 import java.awt.Image;
 import java.awt.event.ComponentEvent;
 import java.awt.event.ComponentListener;
+import java.util.ArrayList;
 
 import javax.swing.Icon;
+import javax.swing.JComboBox;
 import javax.swing.JDialog;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
-import javax.swing.JPasswordField;
 import javax.swing.SwingUtilities;
 import javax.swing.event.AncestorEvent;
 import javax.swing.event.AncestorListener;
@@ -19,33 +19,34 @@ import javax.swing.event.AncestorListener;
 import net.mohc.utils.ImageHelper;
 import net.mohc.utils.RiverLayout;
 
-public class PinDialog {
+public class CertChoiceDialog {
 
-	public static char[] showPinDialog(Component parent) {
+	public static String showChoices(ArrayList<String> aliases) {
 		ImageHelper imageHelper = new ImageHelper();
-		String okOption = "Unlock";
+		String okOption = "Select";
 		Object[] options = { okOption };
 		Object[] message = new Object[1];
-		final JPasswordField pinField = new JPasswordField(10);
+		final JComboBox<String> choiceField = new JComboBox<>(aliases.toArray(new String[0]));
 		final JPanel tp = new JPanel(new RiverLayout(5, 5));
-		tp.add("hfill", new JLabel("<html><b>Enter card pin<br>and click \"Unlock\"</b></html>"));
-		tp.add("", pinField);
+		tp.add("hfill", new JLabel("<html><b>There is more than one certificate on this card, please choose and click \"Select\"</b></html>"));
+		tp.add("br", new JLabel("Certificates:"));
+		tp.add("tab", choiceField);
 		message[0] = tp;
 		
 		Image imageCard = imageHelper.getImage("smart-card-16");
 		final JFrame tmpFrame = new JFrame();
     tmpFrame.setIconImage(imageCard);
     
-		Icon icon = imageHelper.getIcon("Padlock32");
+		Icon icon = imageHelper.getIcon("Certificate");
 		JOptionPane pane = new JOptionPane(message, JOptionPane.QUESTION_MESSAGE, JOptionPane.DEFAULT_OPTION, icon , options, options[0]);  
-		final JDialog dialogue = pane.createDialog(tmpFrame, "Pin required");  
+		final JDialog dialogue = pane.createDialog(tmpFrame, "Multiple Certificates");  
 		dialogue.setAlwaysOnTop(true);
 
-		pinField.addAncestorListener(new AncestorListener() {
+		choiceField.addAncestorListener(new AncestorListener() {
 			public void ancestorAdded(AncestorEvent event) {
 				tmpFrame.toFront();
 				dialogue.toFront();
-				pinField.requestFocusInWindow();
+				choiceField.requestFocusInWindow();
 			}
 			public void ancestorMoved(AncestorEvent event) {}
 			public void ancestorRemoved(AncestorEvent event) {}
@@ -75,12 +76,12 @@ public class PinDialog {
 		dialogue.setVisible(true);
 		boolean result = okOption.equals(pane.getValue());
 
-		char [] pin;
+		String alias;
 		if (result) {
-			pin = pinField.getPassword();
+			alias = (String)choiceField.getSelectedItem();
 		} else {
-			pin = null;
+			alias = aliases.get(0);
 		}
-		return pin;
+		return alias;
 	}
 }

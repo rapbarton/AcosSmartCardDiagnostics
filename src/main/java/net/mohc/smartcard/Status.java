@@ -15,6 +15,7 @@ public class Status implements SmartCardConstants {
 	
 	public Status () {
 		statusChangeListeners = new ArrayList<StatusChangeListener>();
+		System.out.println("ere");
 	}
 
 	public int getCurrentStatus() {
@@ -42,6 +43,9 @@ public class Status implements SmartCardConstants {
 			case CARD_PRESENT:
 				imageName = "smart-card-24";
 				break;
+			case SESSION_ACTIVE:
+				imageName = "smart-card-connected-24";
+				break;
 		}		
 		return Toolkit.getDefaultToolkit().getImage("src/main/resources/img/"+imageName+".png");
 	}
@@ -52,6 +56,7 @@ public class Status implements SmartCardConstants {
 			case NO_TERMINAL: return "No terminal";
 			case TERMINAL_FOUND: return "Waiting for card";
 			case CARD_PRESENT: return "Card present";
+			case SESSION_ACTIVE: return "Active";
 			default: return "?";
 		}		
 	}

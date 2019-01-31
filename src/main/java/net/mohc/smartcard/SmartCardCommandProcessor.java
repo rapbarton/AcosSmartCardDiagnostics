@@ -43,6 +43,10 @@ public class SmartCardCommandProcessor implements CommandProcessor {
   	}
   }
   
+  public String commandCertificateDetail (String sData) {
+  	return controller.getCertificateDetails();
+  }
+  
   public String commandConnect (String sData) {
 		controller.openKeystore();
 		if (controller.isKeyStoreOpen()) {

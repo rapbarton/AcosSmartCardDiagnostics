@@ -70,7 +70,8 @@ public class RemoteConsoleFrame extends JFrame
 				new Option("Test","Test"),
 				new Option("Is card inserted?","CardPresentStatus"),
 				new Option("Log in","Connect"),
-				new Option("Certificate","CertificateStatus"),
+				new Option("Certificate Owner","CertificateStatus"),
+				new Option("Certificate Details","CertificateDetail"),
 				new Option("Log out","Quit:signout"),
 				new Option("Sign","Sign:"+SESSIONID_TAG+":123456:Test string"),
 				new Option("Close tray app","Quit:shutdown")
