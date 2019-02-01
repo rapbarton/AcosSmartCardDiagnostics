@@ -7,15 +7,18 @@ import java.util.ArrayList;
 
 import javax.swing.SwingUtilities;
 
+import net.mohc.utils.ImageHelper;
+
 public class Status implements SmartCardConstants {
 	private int currentStatus = NOT_INITIALISED;
 	private String currentTerminal = TERMINAL_TYPE_NONE;
 
 	private ArrayList<StatusChangeListener> statusChangeListeners;
+	private ImageHelper imageHelper;
 	
 	public Status () {
+		imageHelper = new ImageHelper();
 		statusChangeListeners = new ArrayList<StatusChangeListener>();
-		System.out.println("ere");
 	}
 
 	public int getCurrentStatus() {
@@ -47,7 +50,7 @@ public class Status implements SmartCardConstants {
 				imageName = "smart-card-connected-24";
 				break;
 		}		
-		return Toolkit.getDefaultToolkit().getImage("src/main/resources/img/"+imageName+".png");
+		return imageHelper.getImage(imageName);
 	}
 
 	public String getStatusAsText() {

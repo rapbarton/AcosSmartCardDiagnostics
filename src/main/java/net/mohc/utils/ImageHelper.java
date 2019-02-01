@@ -1,7 +1,7 @@
 package net.mohc.utils;
 
 import java.awt.Image;
-import java.awt.Toolkit;
+import java.net.URL;
 
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
@@ -9,14 +9,24 @@ import javax.swing.ImageIcon;
 public class ImageHelper {
 	
 	public Icon getIcon(String imageName) {
-		//TODO Make more robust - find image in resources
-		Image image = Toolkit.getDefaultToolkit().getImage("src/main/resources/img/"+imageName+".png");
-		return new ImageIcon(image);
+		return getImageIcon(imageName);
 	}
 
 	public Image getImage(String imageName) {
-		//TODO Make more robust - find image in resources
-		return Toolkit.getDefaultToolkit().getImage("src/main/resources/img/"+imageName+".png");
+		return getImageIcon(imageName).getImage();
 	}
 
+	public ImageIcon getImageIcon(String imageName) {
+		URL imageUrl = getClass().getClassLoader().getResource("resources/img/" + imageName + ".png");
+	  if (imageUrl != null) {
+	  	return (new ImageIcon(imageUrl));
+	  }
+		imageUrl = getClass().getClassLoader().getResource("img/" + imageName + ".png");
+	  if (imageUrl != null) {
+	  	return (new ImageIcon(imageUrl));
+	  }	  
+		return null;
+	}
+	
+	
 }
