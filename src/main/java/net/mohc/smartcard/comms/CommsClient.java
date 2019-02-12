@@ -68,10 +68,10 @@ public class CommsClient {
   /**
    * Sends a message.
    */
-  public void sendMessage (String msg) {
+  public boolean sendMessage (String msg) {
     synchronized (lock) {
       remoteMessage.setMessage(new String(msg));
-      remoteMessage.sendMessage(bos);
+      return remoteMessage.sendMessage(bos);
     }
   }
 

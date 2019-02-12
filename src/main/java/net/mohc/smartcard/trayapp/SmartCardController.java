@@ -6,7 +6,9 @@ import java.io.File;
 import java.security.GeneralSecurityException;
 import java.security.Provider;
 import java.security.Provider.Service;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.Vector;
 
@@ -488,11 +490,11 @@ public class SmartCardController implements SmartCardConstants {
 		}
 	}
 
-	public String getCertificateDetails() {
+	public Map<String,String> getCertificateDetails() {
 		if (isKeyStoreOpen()) {
 			return smartCardKeyStore.getCertificateDetail();
 		} else {
-			return "";
+			return new HashMap<String,String>();
 		}
 	}
 

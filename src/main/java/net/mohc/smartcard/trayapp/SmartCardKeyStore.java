@@ -25,6 +25,8 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 import javax.security.auth.callback.Callback;
@@ -384,21 +386,17 @@ public class SmartCardKeyStore {
 		return parts[0].trim();
 	}
 
-	public String getCertificateDetail() {
+	public Map<String,String> getCertificateDetail() {
 		SimpleDateFormat sdf = new SimpleDateFormat(MYSQL_DATE_FORMAT);
-		StringBuilder response = new StringBuilder();
+		HashMap<String,String> response = new HashMap<>();
 		if (isKeystoreLoaded() && hasSession() && null!=currentX509Certificate) {
 			Date from = currentX509Certificate.getNotBefore();
 			Date to = currentX509Certificate.getNotAfter();
-			response.append("validFrom=");
-			response.append(sdf.format(from));
-			response.append(",validTo=");
-			response.append(sdf.format(to));
-			response.append(",prescriberName=");
-			response.append(getPresciberName());
-			response.append(",registration=");
-			response.append(getPresciberRegistration());
+			response.put("validFrom", sdf.format(from));
+			response.put("validTo", sdf.format(to));
+			response.put("prescriberName", getPresciberName());
+			response.put("registration",getPresciberRegistration());
 		} 
-		return response.toString();
+		return response;
 	}
 }

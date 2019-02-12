@@ -2,12 +2,16 @@ package net.mohc.smartcard.trayapp;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.List;
+import java.util.Map;
 
 import javax.swing.Timer;
 
 import org.apache.log4j.Logger;
 
 import net.mohc.smartcard.comms.CommandProcessor;
+import net.mohc.smartcard.comms.TACommand;
+import net.mohc.smartcard.comms.TAResponse;
 
 public class SmartCardCommandProcessor implements CommandProcessor {
 	private Logger logger;
@@ -17,59 +21,118 @@ public class SmartCardCommandProcessor implements CommandProcessor {
 		logger = Logger.getLogger(this.getClass());
 		controller = SmartCardController.getInstance();
 	}
+
+
+	@Override
+	public TAResponse processCommand(TACommand commandPacket) {
+		String command = commandPacket.getCommand();
+		TAResponse response = null;
+		
+		switch (command) {
+		case TACommand.TEST:
+			response = commandTest(commandPacket);
+			break;
+			
+		case TACommand.CARD_STATUS:
+			response = commandCardPresentStatus(commandPacket);
+			break;
+			
+		case TACommand.LOGIN:
+			response = commandConnect(commandPacket);
+			break;
+
+		case TACommand.CERT_OWNER:
+			response = commandCertificateOwner(commandPacket);
+			break;
+
+		case TACommand.CERT_DETAIL:
+			response = commandCertificateDetail(commandPacket);
+			break;
+
+		case TACommand.QUIT:
+			response = commandQuit(commandPacket);
+			break;
+
+		case TACommand.SIGN:
+			response = commandSign(commandPacket);
+			break;
+
+		default:
+			response = TAResponse.buildResponse(commandPacket).setErrorMessage("Unrecognised command");
+		}
+		return response;
+	}
 	
 	/**
    * Does nothing. Just a dummy command for debug.
    */
-  public String commandTest (String sData) {
+  private TAResponse commandTest (TACommand commandPacket) {
     logger.info("Remote test command received");
-    String response = "TEST OK";
-    if (!sData.isEmpty()) {
-    	response += " - \"" + sData + "\"";
-    }
-    return (response);
+    TAResponse responsePacket = TAResponse.buildResponse(commandPacket)
+    		.addPrimaryResponse("TEST OK");
+    List<String> arguments = commandPacket.getArguments();
+    int argNo = 1;
+    for (String argument : arguments) {
+			responsePacket.addResponse("arg(" + argNo + ")", argument);
+		}
+    return (responsePacket);
   }
 	
-  public String commandCardPresentStatus (String sData) {
-  	return controller.getCardPresentStatus();
+  private TAResponse commandCardPresentStatus (TACommand commandPacket) {
+    logger.info("Card status command received");
+    TAResponse responsePacket = TAResponse.buildResponse(commandPacket)
+    		.addPrimaryResponse(controller.getCardPresentStatus());
+  	return responsePacket;
   }
   
-  public String commandCertificateStatus (String sData) {
+  private TAResponse commandCertificateOwner (TACommand commandPacket) {
   	String status = controller.getCertificateStatus();
   	if (null == status || status.isEmpty()) {
-  		return "No certificate visible";
+  		return TAResponse.buildResponse(commandPacket).addPrimaryResponse("No certificate visible");
   	} else {
-  		return status;
+  		return TAResponse.buildResponse(commandPacket).addPrimaryResponse(status);
   	}
   }
   
-  public String commandCertificateDetail (String sData) {
-  	return controller.getCertificateDetails();
+  private TAResponse commandCertificateDetail (TACommand commandPacket) {
+  	Map<String, String> status = controller.getCertificateDetails();
+  	if (null == status || status.isEmpty()) {
+  		return TAResponse.buildResponse(commandPacket).addPrimaryResponse("No certificate visible");
+  	} else {
+  		TAResponse response = TAResponse.buildResponse(commandPacket)
+  				.addPrimaryResponse("OK")
+  				.addResponses(status);
+  		return response;
+  	}
   }
   
-  public String commandConnect (String sData) {
-		controller.openKeystore();
+  private TAResponse commandConnect (TACommand commandPacket) {
+    logger.info("Log in to keystore command received");
+    TAResponse responsePacket = TAResponse.buildResponse(commandPacket);
+  	controller.openKeystore();
 		if (controller.isKeyStoreOpen()) {
-			return "Connected:" + controller.getSessionId();
+			responsePacket.addPrimaryResponse("Connected");
+			responsePacket.addResponse(TAResponse.SESSION, controller.getSessionId());
 		} else {
-			return "Failed to connect";
+			responsePacket.setError("Failed to log in");
 		}
+  	return responsePacket;
 	}
   
-  public String commandSign (String sData) {
+  private TAResponse commandSign (TACommand commandPacket) {
+  	List<String> arguments = commandPacket.getArguments();
   	String result = "Error: Bad arguments in request";
-  	String[] arguments = sData.split(":");
-  	if (arguments.length == 3) {
-  		String sessionID = arguments[0];
-  		String prescReg = arguments[1];
-  		String dataToSign = arguments[2];
+  	if (arguments.size() >= 3) {
+  		String sessionID = arguments.get(0);
+  		String prescReg = arguments.get(1);
+  		String dataToSign = arguments.get(2);
   		result = controller.doSignatureInSession(sessionID, prescReg, dataToSign);
   	}  	
-  	return result;
+		return TAResponse.buildResponse(commandPacket).addPrimaryResponse(result);
   }
   
-  public String commandQuit (String sData) {
-  	if (sData.equalsIgnoreCase("shutdown")) {
+  private TAResponse commandQuit (TACommand commandPacket) {
+  	if (commandPacket.getArguments().contains("shutdown")) {
   		Timer timer = new Timer(1000,new ActionListener() {
 				@Override
 				public void actionPerformed(ActionEvent e) {
@@ -77,14 +140,13 @@ public class SmartCardCommandProcessor implements CommandProcessor {
 				}
 			});
   		timer.start();
-  		return "Closing Down";
-  	} else if (sData.equalsIgnoreCase("signout")) {
+  		return TAResponse.buildResponse(commandPacket).addPrimaryResponse("Closing Down");
+  	} else if (commandPacket.getArguments().contains("signout")) {
 			controller.closeKeystore();
-   		return "Session closed";
+  		return TAResponse.buildResponse(commandPacket).addPrimaryResponse("Session closed");
   	} else {
-  		return "Command ignored due to incorrect argument";
+  		return TAResponse.buildResponse(commandPacket).addPrimaryResponse("Command ignored due to incorrect argument");
   	}
   	
   }
-  
 }

@@ -2,20 +2,21 @@ package net.mohc.smartcard.comms;
 
 import java.awt.*;
 import java.awt.event.*;
+
 import javax.swing.*;
 
 import org.apache.log4j.Logger;
 
 import java.net.* ;
+import java.util.Map;
+import java.util.Map.Entry;
 
 public class RemoteConsoleFrame extends JFrame
                                 implements RemoteControlReplyHandler {
 
   private static final String CONNECTED_REPLY = "Connected:";
 	private static final String SESSIONID_TAG = "[SESSIONID]";
-	private static final int DEFAULT_PORT = 9311;
-  private CommsClient rcc;
-//  private RemoteMessage remoteMessage = new RemoteMessage();
+  private BasicCommsService bcs;
   private static final String CONNECTED = "Connected";
   private static final String IDLE = "Not connected";
 
@@ -42,7 +43,7 @@ public class RemoteConsoleFrame extends JFrame
     enableEvents(AWTEvent.WINDOW_EVENT_MASK);
     try {
       jbInit();
-      rcc = new CommsClient(DEFAULT_PORT, this);
+      bcs = BasicCommsService.getInstance(false);
     } catch (CommsException rce) {
       logger.error(rce.getMessage());
     } catch (Exception e) {
@@ -67,14 +68,14 @@ public class RemoteConsoleFrame extends JFrame
   
   private Option[] getCommands() {
 		return new Option[] {
-				new Option("Test","Test"),
-				new Option("Is card inserted?","CardPresentStatus"),
-				new Option("Log in","Connect"),
-				new Option("Certificate Owner","CertificateStatus"),
-				new Option("Certificate Details","CertificateDetail"),
-				new Option("Log out","Quit:signout"),
-				new Option("Sign","Sign:"+SESSIONID_TAG+":123456:Test string"),
-				new Option("Close tray app","Quit:shutdown")
+				new Option("Test",TACommand.TEST),
+				new Option("Is card inserted?",TACommand.CARD_STATUS),
+				new Option("Log in",TACommand.LOGIN),
+				new Option("Certificate Owner",TACommand.CERT_OWNER),
+				new Option("Certificate Details",TACommand.CERT_DETAIL),
+				new Option("Log out",TACommand.QUIT+":signout"),
+				new Option("Sign",TACommand.SIGN+":"+SESSIONID_TAG+":123456:Test string"),
+				new Option("Close tray app",TACommand.QUIT+":shutdown")
 		};
 	}
 	/**Component initialization*/
@@ -168,8 +169,10 @@ public class RemoteConsoleFrame extends JFrame
       } else {
         ipAddr = InetAddress.getByName(s);
       }
-      rcc.connect(ipAddr);
-      rcc.sendMessage("Test");
+      
+      bcs.startComms();
+      //rcc.connect(ipAddr);
+      //rcc.sendMessage("Test");
 
     } catch(Exception ex) {
       jTextFieldConnected.setText("Error");
@@ -180,7 +183,10 @@ public class RemoteConsoleFrame extends JFrame
 
   void jButtonNew_actionPerformed(ActionEvent e) {
     try {
-      rcc.sendMessage(jTextArea1.getText());
+      //rcc.sendMessage(jTextArea1.getText());
+    	
+    	bcs.sendCommand(new TACommand(jTextArea1.getText()), createHandler());
+    	
       jTextFieldConnected.setText("Message sent");
     } catch(Exception ex) {
       jTextFieldConnected.setText("Error");
@@ -215,4 +221,49 @@ public class RemoteConsoleFrame extends JFrame
     jTextAreaReply.append(sMsg + "\n");
   }
 
+  private TAResponseHandler createHandler() {
+  	return new TAResponseHandler() {
+			
+			@Override
+			public void messageResponse(Map<String, String> responses) {
+				jTextAreaReply.append(convertResponsesToString(responses) + "\n");
+			}
+			
+			@Override
+			public void messageError(String errorMessage) {
+				jTextAreaReply.append("ERROR: " + errorMessage + "\n");
+			}
+		};
+  }
+  
+	private String convertResponsesToString(Map<String, String> responses) {
+		if (responses.isEmpty()) {
+			return "Missing response";
+		}
+		if (responses.size() == 1 && responses.containsKey(TAResponse.PRIMARY_RESPONSE)) {
+			String txt = responses.get(TAResponse.PRIMARY_RESPONSE);
+			return txt.isEmpty()?"Empty response":txt;
+		}
+		StringBuilder sb = new StringBuilder();
+		if (responses.containsKey(TAResponse.PRIMARY_RESPONSE)) {
+			sb.append("Primary = ");
+			sb.append(responses.get(TAResponse.PRIMARY_RESPONSE));
+			sb.append("\n");
+		}
+		for (Entry<String, String> response : responses.entrySet()) {
+			if (!TAResponse.PRIMARY_RESPONSE.equals(response.getKey())) {
+				if (response.getKey().equals("sessionId")) {
+					sessionId = response.getValue();
+				}
+				sb.append(response.getKey());
+				sb.append(" = ");
+				sb.append(response.getValue());
+				sb.append("\n");
+			}
+		}
+		return sb.toString();
+	}
+
+
+  
 }

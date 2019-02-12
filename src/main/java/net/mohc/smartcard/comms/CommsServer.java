@@ -1,13 +1,13 @@
 package net.mohc.smartcard.comms;
 
 import java.util.ArrayList;
+import java.util.List;
 
 public class CommsServer {
   private static final int DEFAULT_PORT = 9311;
   private int iTTPort = DEFAULT_PORT;
   private CommsSocket socket;
-  protected String sMessageOut;
-  protected ArrayList<String> vMsgReplies;
+  private ArrayList<String> queue;
 
   Command command;
 
@@ -18,7 +18,7 @@ public class CommsServer {
 		this();
 		this.iTTPort = port;
 		this.command = null;
-		this.vMsgReplies = new ArrayList<>();
+		this.queue = new ArrayList<>();
 		
 		// create a Proxy socket object
 		socket = new CommsSocket(iTTPort, this);
@@ -47,21 +47,36 @@ public class CommsServer {
   }
 
   public synchronized boolean sendMessage(String sMsg) {
-    synchronized (vMsgReplies) {
-      this.vMsgReplies.add(new String (sMsg));//New reference as we are in a thread
+    synchronized (queue) {
+      this.queue.add(new String (sMsg));//New reference as we are in a thread
     }
     return true;
   }
 
   public void clearReplyQueue () {
-    synchronized (vMsgReplies) {
-      vMsgReplies.clear();
+    synchronized (queue) {
+      queue.clear();
     }
   }
 
   public void closeComms() {
     socket.closeComms();
     socket = null;
-  }		  
+  }
+
+	public List<String> getQueue() {
+		return queue;
+	}
+
+	public String getNextMessageToSend() {
+		String smr = null;
+		synchronized (queue) {
+    	if (!queue.isEmpty()) {
+        smr = queue.get(0);
+        queue.remove(0);
+      }
+    }
+		return smr;
+	}		  
   
 }

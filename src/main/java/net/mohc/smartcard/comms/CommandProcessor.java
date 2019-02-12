@@ -21,5 +21,9 @@ package net.mohc.smartcard.comms;
  * @version 1.0
  */
 
-public interface CommandProcessor {}
+public interface CommandProcessor {
+	
+	public TAResponse processCommand(TACommand commandPacket);
+	
+}
 

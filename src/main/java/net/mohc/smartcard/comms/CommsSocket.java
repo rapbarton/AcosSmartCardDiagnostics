@@ -9,7 +9,6 @@ import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-
 import org.apache.log4j.Logger;
 
 public class CommsSocket extends Thread {
@@ -129,15 +128,12 @@ public class CommsSocket extends Thread {
         }
 
         //Check for messages to go...
-        synchronized (rcParent.vMsgReplies) {
+        String smr = rcParent.getNextMessageToSend();
+        if (null != smr) {
           try {
-            if (rcParent.vMsgReplies.size() > 0) {
-              String smr = (String)(rcParent.vMsgReplies.get(0));
-              rcParent.vMsgReplies.remove(0);
-              rmr.setMessage(smr);
-              rmr.sendMessage(os);
-              logger.info( "RC Message Sent: " + rcParent.sMessageOut);
-            }
+          	rmr.setMessage(smr);
+            rmr.sendMessage(os);
+            logger.info( "RC Message Sent: " + smr);
           } catch (Exception e) {
             logger.warn("TS Error writing message " + e);
             bSocketOk = false;
@@ -200,7 +196,7 @@ public class CommsSocket extends Thread {
       public void run () {
         StringBuffer sbReply = new StringBuffer();
         if (!command.processMessage (sMsg, sbReply)) {
-          logger.info("Remote command failed - " + command.getErrorMessage());
+          logger.info("Remote command failed - " + sbReply.toString());
         }
         if (sbReply.length() > 0) {
           rcParent.sendMessage(sbReply.toString());

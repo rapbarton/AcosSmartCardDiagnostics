@@ -1,112 +1,29 @@
 package net.mohc.smartcard.comms;
 
-import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.HashMap;
 
 public class Command {
-  /**
-   * This object contains all command actions as methods with format
-   * void commandName(String msgData);
-   */
-  Object commandActions;
-  HashMap<String, Method> hmMethods;
-  String sError = "";
+	CommandProcessor commandProcessor;
+	JSonUtilities jsonUtils;
 
-  private static final String METHOD_PREFIX = "command";
-
-  public Command(Object commandActions) {
-    this.commandActions = commandActions;
-    init();
-  }
-
-  private void init () {
-    String sf, sc;
-    hmMethods = new HashMap<>();
-    Class<?> c = commandActions.getClass();
-    Method[] allMethods = c.getDeclaredMethods();
-    for (int i = 0; i < allMethods.length; i++) {
-      sf = allMethods[i].getName();
-      if (sf.startsWith(METHOD_PREFIX)) {
-        sc = sf.substring(METHOD_PREFIX.length());
-        hmMethods.put(sc, allMethods[i]);
-      }
-    }
+  public Command(CommandProcessor commandProcessor) {
+    this.commandProcessor = commandProcessor;
+    this.jsonUtils = JSonUtilities.getInstance();
   }
 
   /**
-   * Assumes message starts with one of the commands in one of these formats...
+   * Assumes message is a json encoded command
    */
   public boolean processMessage (String message, StringBuffer reply) {
-    reply.setLength(0);
-    Object oReply = null;
-    String sCommand = "";
-    String sData = "";
-    sError = "";
-    if (message == null) {
-      sError = "Message was null";
-      reply.append("ERROR: ");
-      reply.append(sError);
+  	TACommand taCommand = jsonUtils.convertCommandFromJson(message);
+  	reply.setLength(0);
+    if (taCommand == null) {
+    	reply.append("ERROR: Message was not understood");
       return false;
     }
-    int idx_colon = message.indexOf(":");
-    int idx_semi = message.indexOf(":");
-    if ( idx_colon < 0 ) {
-      sData = "";
-      if (idx_semi < 0) {
-        //ie command without colon or semi-colon
-        sCommand = message;
-      } else {
-        //ie command only terminated with a semi-colon - rest of message ignored
-        sCommand = message.substring(0, idx_semi);
-      }
-    } else {
-      //got a message with format CMD:DATA
-      sCommand = message.substring(0, idx_colon);
-      if ((idx_colon+1) >= message.length()) {
-        sData = "";
-      } else {
-        sData = message.substring(idx_colon+1);
-      }
-    }
-
-    if ( sCommand.startsWith("Help") ||
-         sCommand.startsWith("?") ) {
-
-    }
-
-    Method methodToInvoke = (Method)(hmMethods.get(sCommand));
-    if (methodToInvoke == null) {
-      sError = "Could not understand command \"" + sCommand + "\"";
-      reply.append("ERROR: ");
-      reply.append(sError);
-      return false;
-    }
-
-    try {
-      Object[] arguments = new Object[] {sData};             // Set up argument array
-      oReply = methodToInvoke.invoke(this.commandActions, arguments);
-    } catch (Exception ge) {
-      sError = ge.getMessage();
-      reply.append("ERROR: ");
-      reply.append(sError);
-      return false;
-//      if(Rel.DEV)Db.out(CN, Dl.Error, "General exception: " + ge.toString());
-    }
-    if (oReply != null) {
-//      if (oReply instanceof String) {
-      reply.append(oReply.toString());
-    } else {
-      reply.append("OK");
-    }
+    TAResponse response = commandProcessor.processCommand(taCommand);
+    reply.append(jsonUtils.convertResponseToJson(response));
     return true;
-  }
-
-  /**
-   * Returns last error message. This is cleared with each attempt at executing a command
-   */
-  public String getErrorMessage() {
-    return sError;
   }
 
   /**
