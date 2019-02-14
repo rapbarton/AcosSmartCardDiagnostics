@@ -22,11 +22,8 @@ public class CommsClient {
   private RemoteControlReplyHandler rcrh;
   private Logger logger;
   
-  CommsClient() {
-  	logger = Logger.getLogger(this.getClass());
-  }
-
   public CommsClient (int port, RemoteControlReplyHandler rcrh) throws CommsException {
+  	logger = Logger.getLogger(this.getClass());
     lock = new Object();
     this.iTTPort = port;
     this.rcrh = rcrh;
@@ -51,14 +48,19 @@ public class CommsClient {
   public void connect(InetAddress ip) throws CommsException {
     try {
       synchronized (lock) {
-        bConnected = false;
-        ipAddr = ip;
-        if (socket != null) {
-          socket.close();
-        }
-        socket = new Socket(ipAddr, iTTPort);
-        bos = new BufferedOutputStream(socket.getOutputStream()) ;
-        bis = new BufferedInputStream(socket.getInputStream()) ;
+      	if (!bConnected) {
+	        bConnected = false;
+	        ipAddr = ip;
+	        if (socket != null) {
+	          socket.close();
+	        }
+	        socket = new Socket(ipAddr, iTTPort);
+	        bos = new BufferedOutputStream(socket.getOutputStream()) ;
+	        bis = new BufferedInputStream(socket.getInputStream()) ;
+	        bConnected = true;
+      	} else {
+      		logger.info("Connection requested but ignoring because already connected");
+      	}
       }
     } catch(Exception ex) {
       throw new CommsException (ex.getMessage());
@@ -76,8 +78,10 @@ public class CommsClient {
   }
 
   public void close () {
-    receiver.close();
-    receiver = null;
+  	if (null != receiver) {
+  		receiver.close();
+  		receiver = null;
+  	}
   }
 
   /**
@@ -89,7 +93,7 @@ public class CommsClient {
   }
 
   void invokeProcessMessage(final String sMsg) {
-    bConnected = true;
+    //bConnected = true;
     Runnable r = new Runnable () {
       public void run () {
         rcrh.processReply(new String (sMsg));
@@ -166,7 +170,7 @@ public class CommsClient {
       parent.bis = null;
       parent.bos = null;
       bConnected = false;
-     logger.info("RemoteControlClient killed");
+      logger.info("RemoteControlClient killed");
     }
   }
 

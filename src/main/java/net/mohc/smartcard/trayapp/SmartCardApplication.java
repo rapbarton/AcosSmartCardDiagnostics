@@ -36,11 +36,18 @@ public class SmartCardApplication {
 	TrayIcon trayIcon;
 	
 	public static void main(String[] args) {
+		boolean quietMode = args.length >= 1 && "-q".equals(args[0]);
+		if (System.getProperty("disable.error.popup", "false").equalsIgnoreCase("true")) {
+			quietMode = true;
+		}
+		System.out.println("disable.error.popup = " + System.getProperty("disable.error.popup"));
 		try {
 			new SmartCardApplication();
 		} catch (Exception e) {
 			Logger.getLogger(SmartCardApplication.class).fatal("A fatal error has occured, this application will close. The cause:" + e.getMessage());
-			JOptionPane.showMessageDialog(null, "An error has occured, the cause is " + e.getMessage(), "Something Went Wrong...", JOptionPane.ERROR_MESSAGE);
+			if (!quietMode) {
+				JOptionPane.showMessageDialog(null, "An error has occured, the cause is " + e.getMessage(), "Something Went Wrong...", JOptionPane.ERROR_MESSAGE);
+			}
 			System.exit(-1);
 		}
 	}
@@ -54,6 +61,7 @@ public class SmartCardApplication {
 		registerAsListener();
 		controller.initialise();
 		logger.info("Smart Card Application started");
+		System.out.println("Smart Card Application started");
 	}
 	
 	private void initialiseTray () {

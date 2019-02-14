@@ -44,14 +44,16 @@ public class Configuration  implements SmartCardConstants {
 		if (null == filename) {
 			filename = is64bit0()?DEFAULT_DLL_FILENAME_64BIT:DEFAULT_DLL_FILENAME_32BIT;
 		}
-		URL url = getClass().getClassLoader().getResource("resources" + separator + filename);
-		if (null == url) {
-			url = getClass().getClassLoader().getResource(filename);
-			if (null == url) {
-				return new File (filename);
-			}
-		}		
-		return new File(url.getFile());
+		String dllPath = System.getProperty("location.dll", ".");
+		return new File(dllPath + separator + filename);		
+//		URL url = getClass().getClassLoader().getResource("resources" + separator + filename);
+//		if (null == url) {
+//			url = getClass().getClassLoader().getResource(filename);
+//			if (null == url) {
+//				return new File (filename);
+//			}
+//		}		
+//		return new File(url.getFile());
 	}
 
 	private boolean is64bit0() {

@@ -3,84 +3,128 @@ package net.mohc.smartcard.trayapp;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.concurrent.TimeUnit;
 
 import javax.swing.SwingUtilities;
 
 import org.apache.log4j.Logger;
 
-public class SmartCardApplicationLauncher {
+public class SmartCardApplicationLauncher extends Thread {
 	private static final long MIN_SECONDS_BEFORE_RETRY_STARTUP_COMMAND = 60;
 	private Logger logger;
 	private Runnable serviceStarter = null;
-	private long msLastRunComplete = 0;
+	private long lastAttempt = 0;
 	private static SmartCardApplicationLauncher singletonInstance = null;
+	private boolean running = false;
 
 	/**
 	 * This will dumbly attempt to launch the tray app whenever called. It will ignore request if within 60s of last attempt that appeared to run the command line successfully.
 	 */
 	public static void launch() {
 		if (null == singletonInstance) {
-			singletonInstance = new SmartCardApplicationLauncher();
+			singletonInstance = new SmartCardApplicationLauncher("Smart Card Tray App Launcher");
 		}
 		singletonInstance.tryToStartCardTrayApplication();
 	}
 	
-	private SmartCardApplicationLauncher () {
+	private SmartCardApplicationLauncher (String name) {
+		super(name);
+		setDaemon(true);
+		running = false;
 		logger = Logger.getLogger(SmartCardApplicationLauncher.class);
 	}
 	
 	private void tryToStartCardTrayApplication() {
-		if (null == serviceStarter || lastRunSomeTimeAgo()) {
-			serviceStarter = new Runnable() {
-				@Override
-				public void run() {
-		    	logger.info("Trying to start tray application");
-					Runtime rt = Runtime.getRuntime();
-					try {
-						String commandLine = getStartTrayCommand();
-						logger.info("Running command # " + commandLine);
-						Process pr = rt.exec(commandLine);
-						
-						BufferedReader in = new BufferedReader(new InputStreamReader(pr.getInputStream()));
-			      String line;
-			      boolean started = false;
-			      while ((line = in.readLine()) != null) {
-			      	logger.info(line);
-			      	if (line.contains("Smart Card Application started")) {
-			      		started = true;
-			      		break;
-			      	}
-			      }
-						if (!started) {
-							int retval = pr.waitFor();
-							logger.info("Execution of command to start tray application returned " + retval);
-						}
-					} catch (IOException e) {
-						logger.error("Failed to execute command to start tray application");
-					} catch (InterruptedException e) {
-						logger.error("Command to start tray application was interrupted");
-					} catch (IllegalArgumentException e) {
-						logger.error("Command to start tray application was invalid");
-					}
-					msLastRunComplete = Calendar.getInstance().getTimeInMillis();
-				}
-			};
-	  	SwingUtilities.invokeLater(serviceStarter);
+		if (!isAlive()) {
+			start();
 		}
 	}
 
-	private boolean lastRunSomeTimeAgo() {
-		if (msLastRunComplete == 0) return false;
-		long msTimeNow =  Calendar.getInstance().getTimeInMillis();
-		return (msTimeNow - msLastRunComplete) > (1000l * MIN_SECONDS_BEFORE_RETRY_STARTUP_COMMAND);
+	public void run() {
+		while(true) {
+			if (!running && dueForAnAttempt()) {
+				running = launchAttempt();
+			}
+			try {
+				Thread.sleep(1000l);
+			} catch (InterruptedException e) {
+				logger.info("Launcher aborted");
+				return;
+			}
+		}
+	}
+	
+	
+	public boolean launchAttempt() {
+  	logger.info("Trying to start tray application");
+		boolean started = false;
+  	Runtime rt = Runtime.getRuntime();
+		try {
+			String commandLine = getStartTrayCommand();
+			logger.info("Running command # " + commandLine);
+			final Process pr = rt.exec(commandLine);
+			
+//			BufferedReader in = new BufferedReader(new InputStreamReader(pr.getInputStream()));
+//			BufferedReader er = new BufferedReader(new InputStreamReader(pr.getErrorStream()));
+			InputStreamReader in = new InputStreamReader(pr.getInputStream());
+			InputStreamReader er = new InputStreamReader(pr.getErrorStream());
+      StringBuilder stdLine = new StringBuilder();
+      StringBuilder errLine = new StringBuilder();
+      started = false;
+
+      long timeout = timeNow() + 20;
+      do {
+      	while (in.ready()) {
+      		char c = (char) in.read();
+      		if (c == '\n') {
+      			String line = stdLine.toString();
+          	stdLine.setLength(0);
+          	logger.info(line.trim());
+          	if (line.contains("Smart Card Application started")) {
+          		started = true;
+          	}
+      		} else {
+      			stdLine.append(c);
+      		}
+      	}
+      	while (er.ready()) {
+      		char c = (char) er.read();
+      		if (c == '\n') {
+      			String line = errLine.toString();
+          	errLine.setLength(0);
+          	logger.warn(line.trim());
+      		} else {
+      			errLine.append(c);
+      		}
+      	}
+      } while (timeNow() < timeout && !started);
+		} catch (IOException e) {
+			logger.error("Failed to execute command to start tray application");
+		} catch (IllegalArgumentException e) {
+			logger.error("Command to start tray application was invalid");
+		}
+		lastAttempt = timeNow();
+		return started;
+	}
+
+	private long timeNow() {
+		return Calendar.getInstance().getTimeInMillis() / 1000l;
+	}
+	
+	private boolean dueForAnAttempt() {
+		if (lastAttempt == 0) return true;
+		return (timeNow() - lastAttempt) > (MIN_SECONDS_BEFORE_RETRY_STARTUP_COMMAND);
 	}
 
 	protected String getStartTrayCommand() {
 		StringBuilder command = new StringBuilder();
 		command.append(pathToJava());
 		command.append(separator());
-		command.append("java -jar ");
+		command.append("java -jar -Ddisable.error.popup=true ");
 		command.append(pathToTrayJar());
 		return command.toString();
 	}

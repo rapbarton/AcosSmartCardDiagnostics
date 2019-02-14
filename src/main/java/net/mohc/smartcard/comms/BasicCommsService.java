@@ -2,6 +2,7 @@ package net.mohc.smartcard.comms;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -59,19 +60,25 @@ public class BasicCommsService {
 				private void commsMonitor () {
 					logger.info("Starting comms monitor");
 					boolean abort = false;
+					final TestCommand testCommand = new TestCommand();
 					do {
 						//If not connected, try connect
 						if (!rcc.isConnected()) {
+							logger.info("Not connected so trying to connect...");
 				  		try {
 								try {
 									rcc.connect(InetAddress.getLocalHost());
-									sendCommandAndWait(new TACommand(TACommand.TEST));
+									logger.info("Connected");
+									testCommand.clear();
+									testCommand.setScheduledCheckTime(timeNow());
 								} catch (CommsException e) {
 									logger.info("Test connection failed, maybe tray app needs to start");
 								}
 								if (!rcc.isConnected()) {
+									logger.info("Trying to launch app");
 									SmartCardApplicationLauncher.launch();
 									try {
+										logger.info("Hang about for app to get going");
 										Thread.sleep(3000);
 									} catch (InterruptedException e2) {
 										logger.error("Unexpected interruption");
@@ -89,6 +96,35 @@ public class BasicCommsService {
 							logger.error("Unexpected interruption");
 							abort = true;
 						}
+						if (rcc.isConnected()) {
+							if (!testCommand.isActive() && isTimeToCheck(testCommand.getScheduledCheckTime())) {
+								logger.info("Time to check connection by sending a test command");
+								testCommand.create();
+								testCommand.setTimeSentTestMessage(timeNow());
+								sendCommand(testCommand.get(), new TAResponseHandler(){
+									@Override
+									public void messageResponse(Map<String, String> responses) {
+										if (testCommand.isActive()) {
+											logger.info("Test command response received - all is well");
+											testCommand.clear();
+											testCommand.setScheduledCheckTime(60l + timeNow());
+										}
+									}
+									@Override
+									public void messageError(String errorMessage) {
+										testCommand.clear();
+										logger.warn("Test message failure when checking connection - killing connection");
+										rcc.close();
+									}});
+							} else if (testCommand.isActive()) {
+								long timeSpentWaitingForTestResponse = timeNow() - testCommand.getTimeSentTestMessage();
+								if (timeSpentWaitingForTestResponse > 5) {
+									testCommand.clear();
+									logger.warn("Been taking too long to check connection with test command - killing connection");
+									rcc.close();
+								}
+							}								
+						}
 					} while (!abort);
 					logger.info("Finished with comms monitor");
 			  }
@@ -96,7 +132,45 @@ public class BasicCommsService {
 			commsStarter.start();
 		}
 	}
+
+	private class TestCommand {
+		private TACommand command = null;
+		private long scheduledCheckTime = 0;
+		private long timeSentTestMessage = 0;
+		public boolean isActive() {
+			return null != command; 
+		}
+		public TACommand get() {
+			return command;
+		}
+		public void create() {
+			command = new TACommand(TACommand.TEST);
+		}
+		public void clear() {
+			command = null;
+		}
+		public void setScheduledCheckTime(long scheduledCheckTime) {
+			this.scheduledCheckTime = scheduledCheckTime;
+		}
+		public long getScheduledCheckTime() {
+			return this.scheduledCheckTime;
+		}
+		public void setTimeSentTestMessage(long timeSentTestMessage) {
+			this.timeSentTestMessage = timeSentTestMessage;
+		}
+		public long getTimeSentTestMessage() {
+			return this.timeSentTestMessage;
+		}
+	}
 	
+	protected boolean isTimeToCheck(long scheduledCheckTime) {
+		long elapsed = timeNow() - scheduledCheckTime;
+		return elapsed >= 0;
+	}
+	
+	protected long timeNow() {
+		return Calendar.getInstance().getTimeInMillis() / 1000l;
+	}
 
 	private Map<String, String> sendCommandAndWait(TACommand command) {
 		final Object o = new Object();
@@ -104,12 +178,18 @@ public class BasicCommsService {
 		TAResponseHandler handler = new TAResponseHandler() {
 			@Override
 			public void messageResponse(Map<String, String> responses) {
-				retval.putAll(responses);
-				o.notify();
+				synchronized (o) {
+					logger.info("Message received");
+					retval.putAll(responses);
+					o.notify();
+				}
 			}
 			@Override
 			public void messageError(String errorMessage) {
-				o.notify();
+				synchronized (o) {
+					logger.info("Message failure");
+					o.notify();
+				}
 			}
 		};
 		synchronized (o) {
