@@ -1,7 +1,5 @@
 package net.mohc.smartcard.comms;
 
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Map;
@@ -65,29 +63,21 @@ public class BasicCommsService {
 						//If not connected, try connect
 						if (!rcc.isConnected()) {
 							logger.info("Not connected so trying to connect...");
-				  		try {
+							try {
+								rcc.connect();
+								logger.info("Connected");
+								testCommand.clear();
+								testCommand.setScheduledCheckTime(timeNow() + 2);
+							} catch (CommsException e) {
+								logger.info("Test connection failed, trying to launch app");
+								SmartCardApplicationLauncher.launch();
 								try {
-									rcc.connect(InetAddress.getLocalHost());
-									logger.info("Connected");
-									testCommand.clear();
-									testCommand.setScheduledCheckTime(timeNow());
-								} catch (CommsException e) {
-									logger.info("Test connection failed, maybe tray app needs to start");
+									logger.info("Hang about for app to get going");
+									Thread.sleep(5000);
+								} catch (InterruptedException e2) {
+									logger.error("Unexpected interruption");
+									abort = true;
 								}
-								if (!rcc.isConnected()) {
-									logger.info("Trying to launch app");
-									SmartCardApplicationLauncher.launch();
-									try {
-										logger.info("Hang about for app to get going");
-										Thread.sleep(3000);
-									} catch (InterruptedException e2) {
-										logger.error("Unexpected interruption");
-										abort = true;
-									}
-								}
-							} catch (UnknownHostException e) {
-								logger.error("Error determining local host");
-								abort = true;
 							}
 				  	}
 						try {
@@ -107,21 +97,21 @@ public class BasicCommsService {
 										if (testCommand.isActive()) {
 											logger.info("Test command response received - all is well");
 											testCommand.clear();
-											testCommand.setScheduledCheckTime(60l + timeNow());
+											testCommand.setScheduledCheckTime(30l + timeNow());
 										}
 									}
 									@Override
 									public void messageError(String errorMessage) {
 										testCommand.clear();
 										logger.warn("Test message failure when checking connection - killing connection");
-										rcc.close();
+										rcc.disconnect();
 									}});
 							} else if (testCommand.isActive()) {
 								long timeSpentWaitingForTestResponse = timeNow() - testCommand.getTimeSentTestMessage();
 								if (timeSpentWaitingForTestResponse > 5) {
 									testCommand.clear();
 									logger.warn("Been taking too long to check connection with test command - killing connection");
-									rcc.close();
+									rcc.disconnect();
 								}
 							}								
 						}
@@ -263,6 +253,10 @@ public class BasicCommsService {
 		String reply = response.get((TAResponse.PRIMARY_RESPONSE));
 		if (null == reply) reply = "";
 		return reply;
+	}
+
+	public boolean isAvailable() {
+		return rcc.isConnected();
 	}
 
 

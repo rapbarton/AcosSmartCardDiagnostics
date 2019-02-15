@@ -20,6 +20,7 @@ public class SmartCardApplicationLauncher extends Thread {
 	private long lastAttempt = 0;
 	private static SmartCardApplicationLauncher singletonInstance = null;
 	private boolean running = false;
+	private boolean requestRestart = false;
 
 	/**
 	 * This will dumbly attempt to launch the tray app whenever called. It will ignore request if within 60s of last attempt that appeared to run the command line successfully.
@@ -41,6 +42,8 @@ public class SmartCardApplicationLauncher extends Thread {
 	private void tryToStartCardTrayApplication() {
 		if (!isAlive()) {
 			start();
+		} else {
+			requestRestart  = true;
 		}
 	}
 
@@ -54,6 +57,10 @@ public class SmartCardApplicationLauncher extends Thread {
 			} catch (InterruptedException e) {
 				logger.info("Launcher aborted");
 				return;
+			}
+			if (running && requestRestart && dueForAnAttempt()) {
+				requestRestart = false;
+				running = false;
 			}
 		}
 	}
