@@ -6,6 +6,8 @@ import java.io.File;
 import java.security.GeneralSecurityException;
 import java.security.Provider;
 import java.security.Provider.Service;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +24,7 @@ import javax.swing.Timer;
 import org.apache.log4j.Logger;
 
 import net.mohc.smartcard.utils.ImageHelper;
+import net.mohc.smartcard.utils.Base64;
 
 public class SmartCardController implements SmartCardConstants {
 	private static final String STRING_TO_TEST_SIGNATURE = "A test string to test document signing.\n<tag/>";
@@ -34,7 +37,7 @@ public class SmartCardController implements SmartCardConstants {
   Provider provider;
 	private Card connectedCard;
 	private boolean cardPresent;
-	private String cardPresentStatus = "";
+	private String cardPresentStatus = SMART_CARD_TBD;
 	private boolean cardConnected;
 	private String cardConnectedStatus = "";
   private SmartCardKeyStore smartCardKeyStore;
@@ -118,7 +121,7 @@ public class SmartCardController implements SmartCardConstants {
 		if (null != selectedCardTerminal) {
 			try {
 				cardPresent = selectedCardTerminal.isCardPresent();
-				cardPresentStatus = cardPresent?"Found a card":"No card found";
+				cardPresentStatus = cardPresent?SMART_CARD_INSERTED:SMART_CARD_NOT_FOUND;
 				if (cardPresent) {
 					if(!cardConnected) {
 						if (isKeyStoreOpen()) {
@@ -135,7 +138,7 @@ public class SmartCardController implements SmartCardConstants {
 				}
 			} catch (CardException e) {
 				cardPresent = false;
-				cardPresentStatus = "Can't determine if a card is present";
+				cardPresentStatus = SMART_CARD_ERROR;
 			}
 		} 
 	}
@@ -306,6 +309,14 @@ public class SmartCardController implements SmartCardConstants {
 		}
 	}
 	
+	public String connectedCardInfo () {
+		if (cardConnected) {
+			return connectedCard.toString();
+		} else {
+			return "Couldn't read card";
+		}
+	}
+	
 	private void disconnectCard() {
 		if (null != connectedCard) {
 			try {
@@ -359,7 +370,7 @@ public class SmartCardController implements SmartCardConstants {
 		if (null == smartCardKeyStore) {
 			try {
 		  	smartCardKeyStore = new SmartCardKeyStore(getPkcsLibraryFilename());
-		  	validCertificate = smartCardKeyStore.isValid();
+		  	validCertificate = smartCardKeyStore.isValidAndSetStatus();
 				certificateStatus = smartCardKeyStore.getStatus();
 				status.setCurrentStatus(SESSION_ACTIVE);
 			} catch (SmartCardException e) {
@@ -496,6 +507,38 @@ public class SmartCardController implements SmartCardConstants {
 		} else {
 			return new HashMap<String,String>();
 		}
+	}
+
+	public String getCertificateEncoded() {
+		if (isKeyStoreOpen()) {
+			X509Certificate[] chain = smartCardKeyStore.getCertificateChain();
+			if (null == chain) return "";
+			String encodedCertificate;
+			try {
+				encodedCertificate = encodeX509CertChainToBase64(chain);
+			} catch (CertificateException e) {
+				encodedCertificate = "";
+			}
+			return encodedCertificate;
+		}
+		return "";
+	}
+
+/**
+	 * @return Base64-encoded ASN.1 DER representation of given X.509
+	 *         certification chain.
+	 */
+	private String encodeX509CertChainToBase64(X509Certificate[] aCertificationChain) throws CertificateException {
+		if (null == aCertificationChain) {
+			throw new CertificateException("No Certificate Chain");
+		}
+		X509Certificate firstCertificate = aCertificationChain[0];
+		if (firstCertificate != null) {
+			byte[] certPathEncoded = aCertificationChain[0].getEncoded();
+			String base64encodedCertChain = Base64.encodeBytes(certPathEncoded);
+			return base64encodedCertChain;
+		}
+		throw new CertificateException("No certificates found");
 	}
 
 }

@@ -5,6 +5,8 @@ import java.awt.event.*;
 
 import javax.swing.*;
 
+import net.mohc.smartcard.trayapp.SmartCardConstants;
+
 import org.apache.log4j.Logger;
 
 import java.net.* ;
@@ -12,7 +14,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 public class RemoteConsoleFrame extends JFrame
-                                implements RemoteControlReplyHandler {
+                                implements RemoteControlReplyHandler, SmartCardConstants {
 
   private static final String CONNECTED_REPLY = "Connected:";
 	private static final String SESSIONID_TAG = "[SESSIONID]";
@@ -240,18 +242,18 @@ public class RemoteConsoleFrame extends JFrame
 		if (responses.isEmpty()) {
 			return "Missing response";
 		}
-		if (responses.size() == 1 && responses.containsKey(TAResponse.PRIMARY_RESPONSE)) {
-			String txt = responses.get(TAResponse.PRIMARY_RESPONSE);
+		if (responses.size() == 1 && responses.containsKey(KEY_PRIMARY_RESPONSE)) {
+			String txt = responses.get(KEY_PRIMARY_RESPONSE);
 			return txt.isEmpty()?"Empty response":txt;
 		}
 		StringBuilder sb = new StringBuilder();
-		if (responses.containsKey(TAResponse.PRIMARY_RESPONSE)) {
+		if (responses.containsKey(KEY_PRIMARY_RESPONSE)) {
 			sb.append("Primary = ");
-			sb.append(responses.get(TAResponse.PRIMARY_RESPONSE));
+			sb.append(responses.get(KEY_PRIMARY_RESPONSE));
 			sb.append("\n");
 		}
 		for (Entry<String, String> response : responses.entrySet()) {
-			if (!TAResponse.PRIMARY_RESPONSE.equals(response.getKey())) {
+			if (!KEY_PRIMARY_RESPONSE.equals(response.getKey())) {
 				if (response.getKey().equals("sessionId")) {
 					sessionId = response.getValue();
 				}

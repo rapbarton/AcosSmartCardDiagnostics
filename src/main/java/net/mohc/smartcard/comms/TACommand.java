@@ -1,15 +1,18 @@
 package net.mohc.smartcard.comms;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
 public class TACommand {
 	public static final String TEST = "Test";
 	public static final String LOGIN = "Connect";
+	public static final String SESSION_CHECK = "Session";
 	public static final String CARD_STATUS = "CardPresentStatus";
 	public static final String CERT_OWNER = "CertificateStatus";
 	public static final String CERT_DETAIL = "CertificateDetail";
+	public static final String CERT_ENCODED = "CertificateEncoded";
 	public static final String SIGN = "Sign";
 	public static final String QUIT = "Quit";
 		
@@ -28,6 +31,12 @@ public class TACommand {
 		this.commandId = UUID.randomUUID().toString();
 	}
 
+	public TACommand (String command, String... arguments) {
+		this.command = command;
+		this.arguments = Arrays.asList(arguments);
+		this.commandId = UUID.randomUUID().toString();
+	}
+	
 	public TACommand (String command) {
 		String[] parts = command.split(":");
 		this.command = parts[0];

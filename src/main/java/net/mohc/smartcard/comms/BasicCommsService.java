@@ -7,10 +7,12 @@ import java.util.Map;
 import javax.swing.SwingUtilities;
 
 import net.mohc.smartcard.trayapp.SmartCardApplicationLauncher;
+import net.mohc.smartcard.trayapp.SmartCardConstants;
+import net.mohc.smartcard.trayapp.SmartCardException;
 
 import org.apache.log4j.Logger;
 
-public class BasicCommsService {
+public class BasicCommsService implements SmartCardConstants {
 	private static final int DEFAULT_PORT = 9311;
 	private static final long DEFAULT_TIMEOUT = 10;
 	private static BasicCommsService singletonInstance = null;
@@ -162,14 +164,14 @@ public class BasicCommsService {
 		return Calendar.getInstance().getTimeInMillis() / 1000l;
 	}
 
-	private Map<String, String> sendCommandAndWait(TACommand command) {
+	private Map<String, String> sendCommandAndWait(final TACommand command) {
 		final Object o = new Object();
 		final Map<String, String> retval = new HashMap<>();
 		TAResponseHandler handler = new TAResponseHandler() {
 			@Override
 			public void messageResponse(Map<String, String> responses) {
 				synchronized (o) {
-					logger.info("Message received");
+					logger.info("Message received (for \"" + command.getCommand() + "\")");
 					retval.putAll(responses);
 					o.notify();
 				}
@@ -186,9 +188,9 @@ public class BasicCommsService {
 			sendCommand(command, handler);
 			try {
 				o.wait(DEFAULT_TIMEOUT * 1000l);
-				logger.info("Timeout waiting for command response");
+				//logger.info("Timeout waiting for command response");
 			} catch (InterruptedException e) {
-				logger.info("Command response received");
+				logger.info("Command interrupted");
 			}
 		}
 		return retval;
@@ -238,20 +240,27 @@ public class BasicCommsService {
 
 	public boolean doTestCommsCommand() {
 		Map<String, String> response = sendCommandAndWait(new TACommand(TACommand.TEST));
-		return "OK".equals(response.get(TAResponse.PRIMARY_RESPONSE));
+		return "OK".equals(response.get(KEY_PRIMARY_RESPONSE));
 	}
 
-	public String doConnectCommand() {
-		Map<String, String> response = sendCommandAndWait(new TACommand(TACommand.LOGIN));
-		String session = response.get((TAResponse.PRIMARY_RESPONSE));
-		if (null == session) session = "";
-		return session;
+	public boolean doCheckSessionCommand(String sessionId) {
+		Map<String, String> response = sendCommandAndWait(new TACommand(TACommand.SESSION_CHECK, sessionId));
+		return TRUE.equals(response.get(KEY_PRIMARY_RESPONSE));
 	}
 
-	public String doCardPresentCommand() {
+	public void doConnectCommand(TAResponseHandler handler) {
+		sendCommand(new TACommand(TACommand.LOGIN), handler);
+	}
+
+	public String[] doCardPresentCommand() {
+		String reply[] = new String[2];
 		Map<String, String> response = sendCommandAndWait(new TACommand(TACommand.CARD_STATUS));
-		String reply = response.get((TAResponse.PRIMARY_RESPONSE));
-		if (null == reply) reply = "";
+		String cardStatus = response.get((KEY_PRIMARY_RESPONSE));
+		if (null == cardStatus) cardStatus = "";
+		String cardInfo = response.get((KEY_CARD_INFO));
+		if (null == cardInfo) cardInfo = "";
+		reply[0] = cardStatus;
+		reply[1] = cardInfo;
 		return reply;
 	}
 
@@ -259,5 +268,19 @@ public class BasicCommsService {
 		return rcc.isConnected();
 	}
 
+	public String doSignDocumentCommand(String sessionId, String prescReg, String document) {
+		Map<String, String> response = sendCommandAndWait(new TACommand(TACommand.SIGN, sessionId, prescReg, document));
+		String primaryResponse = response.get(KEY_PRIMARY_RESPONSE);
+		if (primaryResponse.startsWith("Error:")) {
+			throw new SmartCardException(primaryResponse);
+		} else {
+			return primaryResponse;
+		}
+	}
+
+	public String doGetEncodedCertificate() {
+		Map<String, String> response = sendCommandAndWait(new TACommand(TACommand.CERT_ENCODED));
+		return response.get(KEY_PRIMARY_RESPONSE);
+	}
 
 }

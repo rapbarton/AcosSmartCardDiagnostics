@@ -3,9 +3,9 @@ package net.mohc.smartcard.comms;
 import java.util.HashMap;
 import java.util.Map;
 
+import net.mohc.smartcard.trayapp.SmartCardConstants;
+
 public class TAResponse {
-	public static final String PRIMARY_RESPONSE = "primary";
-	public static final String SESSION = "sessionId";
 	private String commandId;
 	private boolean isOK;
 	private String errorMessage;
@@ -59,7 +59,7 @@ public class TAResponse {
 		return this;
 	}
 	public TAResponse addPrimaryResponse(String value) {
-		this.responses.put(PRIMARY_RESPONSE, value);
+		this.responses.put(SmartCardConstants.KEY_PRIMARY_RESPONSE, value);
 		return this;
 	}
 

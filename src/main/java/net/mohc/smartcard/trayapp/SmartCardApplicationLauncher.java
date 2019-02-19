@@ -132,8 +132,15 @@ public class SmartCardApplicationLauncher extends Thread {
 		command.append(pathToJava());
 		command.append(separator());
 		command.append("java -jar -Ddisable.error.popup=true ");
+		command.append(predefinedPathToDll());
 		command.append(pathToTrayJar());
 		return command.toString();
+	}
+
+	private String predefinedPathToDll() {
+		String systemDefinePathToDll = System.getProperty("location.dll","");
+		if (systemDefinePathToDll.isEmpty()) return "";
+		return "-Dlocation.dll=" + systemDefinePathToDll + " ";
 	}
 
 	private String separator() {

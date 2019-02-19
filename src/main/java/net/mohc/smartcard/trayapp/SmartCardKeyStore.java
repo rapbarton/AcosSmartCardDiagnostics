@@ -41,7 +41,7 @@ import net.mohc.smartcard.utils.Base64;
 import sun.security.pkcs11.SunPKCS11;
 import sun.security.x509.X509CertInfo;
 
-public class SmartCardKeyStore {
+public class SmartCardKeyStore implements SmartCardConstants {
 	private static final String MYSQL_DATE_FORMAT = "yyyy-MM-dd";
 	private KeyStore ks;
 	private KeyStore.Builder builder;
@@ -49,9 +49,8 @@ public class SmartCardKeyStore {
 	@SuppressWarnings("unused")
 	private PublicKey currentPublicKey;
 	private X509Certificate currentX509Certificate;
-	@SuppressWarnings("unused")
 	private X509Certificate[] currentX509CertificateChain;
-
+	private boolean lastValidityCheck = false;
 	private String status = "Not initialised";
 	private String certificateCN = "";
 	private static final String DIGITAL_SIGNATURE_ALGORITHM_NAME = "SHA1withRSA";
@@ -210,27 +209,26 @@ public class SmartCardKeyStore {
 	 * Checks valid and sets status string
 	 * @return
 	 */
-	public boolean isValid () {
+	public boolean isValidAndSetStatus () {
+		lastValidityCheck = false;
 		if (ks == null) {
-			return false;
+			status = "Not initialised";
+		} else {
+			try {
+				currentX509Certificate.checkValidity(new Date());
+				status = certificateCN;
+				lastValidityCheck = true;
+			} catch (CertificateExpiredException e) {
+				status = "Card expired";
+			} catch (CertificateNotYetValidException e) {
+				status = "Card not yet valid";
+			} catch (NullPointerException e) {
+				status = "No Certificate Available";
+			} catch (java.security.ProviderException pe) {
+				status = "Provider exception: " + pe.getMessage();
+			}
 		}
-		try {
-			currentX509Certificate.checkValidity(new Date());
-		} catch (CertificateExpiredException e) {
-			status = "Card expired";
-			return false;
-		} catch (CertificateNotYetValidException e) {
-			status = "Card not yet valid";
-			return false;
-		} catch (NullPointerException e) {
-			status = "No Certificate Available";
-			return false;
-		} catch (java.security.ProviderException pe) {
-			status = "Provider exception: " + pe.getMessage();
-			return false;
-		}
-		status = certificateCN;
-		return true;
+		return lastValidityCheck;
 	}
 	
 	public String getStatus () {
@@ -392,11 +390,21 @@ public class SmartCardKeyStore {
 		if (isKeystoreLoaded() && hasSession() && null!=currentX509Certificate) {
 			Date from = currentX509Certificate.getNotBefore();
 			Date to = currentX509Certificate.getNotAfter();
-			response.put("validFrom", sdf.format(from));
-			response.put("validTo", sdf.format(to));
-			response.put("prescriberName", getPresciberName());
-			response.put("registration",getPresciberRegistration());
+			response.put(CERT_DETAIL_VALID_FROM, sdf.format(from));
+			response.put(CERT_DETAIL_VALID_TO, sdf.format(to));
+			response.put(CERT_DETAIL_PRESCRIBER_NAME, getPresciberName());
+			response.put(CERT_DETAIL_REGISTRATION,getPresciberRegistration());
+			response.put(CERT_DETAIL_CN,certificateCN);
+			response.put(CERT_IS_VALID, lastValidityCheck?TRUE:FALSE);
 		} 
 		return response;
+	}
+
+	public X509Certificate[] getCertificateChain() {
+		if (isKeystoreLoaded() && hasSession() && null!=currentX509CertificateChain) {
+			return currentX509CertificateChain;
+		} else {
+			return null;
+		}
 	}
 }
