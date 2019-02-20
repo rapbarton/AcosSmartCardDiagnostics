@@ -227,13 +227,23 @@ public class RemoteConsoleFrame extends JFrame
   	return new TAResponseHandler() {
 			
 			@Override
-			public void messageResponse(Map<String, String> responses) {
-				jTextAreaReply.append(convertResponsesToString(responses) + "\n");
+			public void messageResponse(final Map<String, String> responses) {
+				SwingUtilities.invokeLater(new Runnable() {
+					@Override
+					public void run() {
+						jTextAreaReply.append(convertResponsesToString(responses).trim() + "\n");
+					}
+				});
 			}
 			
 			@Override
-			public void messageError(String errorMessage) {
-				jTextAreaReply.append("ERROR: " + errorMessage + "\n");
+			public void messageError(final String errorMessage) {
+				SwingUtilities.invokeLater(new Runnable() {
+					@Override
+					public void run() {
+						jTextAreaReply.append("ERROR: " + errorMessage + "\n");
+					}
+				});
 			}
 		};
   }

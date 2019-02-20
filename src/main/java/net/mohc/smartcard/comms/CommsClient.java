@@ -1,6 +1,5 @@
 package net.mohc.smartcard.comms;
 
-import java.awt.image.RescaleOp;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
@@ -17,18 +16,18 @@ public class CommsClient {
   //private boolean bConnected = false;
   private Socket socket;
   private InetAddress ipAddr;
-  private Object lock;
-  private RemoteMessage remoteMessage;
+  //private Object lock;
+  //private RemoteMessage remoteMessage;
   private Receiver receiver;
   private RemoteControlReplyHandler rcrh;
   private Logger logger;
   
   public CommsClient (int port, RemoteControlReplyHandler rcrh) throws CommsException {
   	logger = Logger.getLogger(this.getClass());
-    lock = new Object();
+    //lock = new Object();
     this.iTTPort = port;
     this.rcrh = rcrh;
-    remoteMessage = new RemoteMessage();
+    //remoteMessage = new RemoteMessage();
     receiver = new Receiver (this);
     receiver.start();
   }
@@ -46,9 +45,9 @@ public class CommsClient {
     }
   }
 
-  private void connect(InetAddress ip) throws CommsException {
+  private synchronized void connect(InetAddress ip) throws CommsException {
     try {
-      synchronized (lock) {
+//      synchronized (lock) {
       	if (isConnected()) {
       		logger.info("Connection requested but ignoring because already connected");
       	} else {
@@ -61,7 +60,7 @@ public class CommsClient {
 	        bos = new BufferedOutputStream(socket.getOutputStream()) ;
 	        bis = new BufferedInputStream(socket.getInputStream()) ;
       	}
-      }
+//      }
     } catch(Exception ex) {
     	socket = null;
     	bos = null;
@@ -73,15 +72,16 @@ public class CommsClient {
   /**
    * Sends a message.
    */
-  public boolean sendMessage (String msg) {
-    synchronized (lock) {
+  public synchronized boolean sendMessage (String msg) {
+//    synchronized (lock) {
+  	RemoteMessage remoteMessage = new RemoteMessage();
       remoteMessage.setMessage(new String(msg));
       return remoteMessage.sendMessage(bos);
-    }
+//    }
   }
 
-  public void disconnect() {
-    synchronized (lock) {
+  public synchronized void disconnect() {
+//    synchronized (lock) {
     	if (isConnected()) {
     		try {
 					socket.close();
@@ -101,7 +101,7 @@ public class CommsClient {
     	}
 			bos = null;
     }  	
-  }
+  //}
   
   private void closeReceiver () {
   	if (null != receiver) {
@@ -120,16 +120,16 @@ public class CommsClient {
 
   private void invokeProcessMessage(final String sMsg) {
     //bConnected = true;
-    Runnable r = new Runnable () {
-      public void run () {
+//    Runnable r = new Runnable () {
+//      public void run () {
         rcrh.processReply(new String (sMsg));
-      }
-    };
-    try {
-      javax.swing.SwingUtilities.invokeLater(r);
-    } catch (Exception exc) {
-      logger.info("Handled exception", exc);
-    }
+//      }
+//    };
+//    try {
+//      javax.swing.SwingUtilities.invokeLater(r);
+//    } catch (Exception exc) {
+//      logger.info("Handled exception", exc);
+//    }
   }
 
   class Receiver extends Thread {
@@ -137,6 +137,7 @@ public class CommsClient {
     boolean abort = false;    
 
     public Receiver (CommsClient parent) {
+    	super ("SmartCard Comms Receiver");
       this.parent = parent; //For easy reference
       this.setPriority(Thread.MIN_PRIORITY);
     }

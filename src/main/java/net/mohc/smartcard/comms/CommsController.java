@@ -7,7 +7,6 @@ public class CommsController {
   protected static final int MODE_NORC = 3;
 
   private static CommsController instance = new CommsController();
-	private CommsServer commsChannel;
 	private boolean isConfigured = false;
 	
 	private CommsController() {}
@@ -18,8 +17,7 @@ public class CommsController {
 	
 	public CommsController startListening(int port, CommandProcessor commandProcessor) throws CommsException {
 		if (isConfigured) throw new CommsException("Already started");
-		commsChannel = new CommsServer(port);
-		commsChannel.setCommandProcessor(commandProcessor);
+		new CommsServer(port, commandProcessor);
 		isConfigured = true;
 		return this;
 	}

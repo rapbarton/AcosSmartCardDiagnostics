@@ -110,7 +110,7 @@ public class BasicCommsService implements SmartCardConstants {
 									}});
 							} else if (testCommand.isActive()) {
 								long timeSpentWaitingForTestResponse = timeNow() - testCommand.getTimeSentTestMessage();
-								if (timeSpentWaitingForTestResponse > 5) {
+								if (timeSpentWaitingForTestResponse > 10) {
 									testCommand.clear();
 									logger.warn("Been taking too long to check connection with test command - killing connection");
 									rcc.disconnect();
@@ -165,32 +165,41 @@ public class BasicCommsService implements SmartCardConstants {
 	}
 
 	private Map<String, String> sendCommandAndWait(final TACommand command) {
-		final Object o = new Object();
+		//final Object o = new Object();
+		
 		final Map<String, String> retval = new HashMap<>();
+		
 		TAResponseHandler handler = new TAResponseHandler() {
 			@Override
 			public void messageResponse(Map<String, String> responses) {
-				synchronized (o) {
+				synchronized (retval) {
 					logger.info("Message received (for \"" + command.getCommand() + "\")");
+					if (command.getCommand().equals("Sign")) {
+						logger.info("PRIMARY RXD HANDLER:" + responses.get(KEY_PRIMARY_RESPONSE));
+					}
 					retval.putAll(responses);
-					o.notify();
+					retval.notify();
 				}
 			}
 			@Override
 			public void messageError(String errorMessage) {
-				synchronized (o) {
+				synchronized (retval) {
 					logger.info("Message failure");
-					o.notify();
+					retval.notify();
 				}
 			}
 		};
-		synchronized (o) {
+
+		synchronized (retval) {
 			sendCommand(command, handler);
 			try {
-				o.wait(DEFAULT_TIMEOUT * 1000l);
+				retval.wait(DEFAULT_TIMEOUT * 1000l);
 				//logger.info("Timeout waiting for command response");
 			} catch (InterruptedException e) {
 				logger.info("Command interrupted");
+			}
+			if (command.getCommand().equals("Sign")) {
+				logger.info("PRIMARY RXD MAIN:" + retval.get(KEY_PRIMARY_RESPONSE));
 			}
 		}
 		return retval;
@@ -227,15 +236,15 @@ public class BasicCommsService implements SmartCardConstants {
 	}
 	
 	private void invokeHandler(final TAResponseHandler handler, final TAResponse response) {
-		SwingUtilities.invokeLater(new Runnable() {
-			@Override
-			public void run() {
+//		SwingUtilities.invokeLater(new Runnable() {
+//			@Override
+//			public void run() {
 				if (response.isOK()) {
 					handler.messageResponse(response.getResponses());
 				} else {
 					handler.messageError(response.getErrorMessage());
 				}
-			}});
+//			}});
 	}
 
 	public boolean doTestCommsCommand() {
@@ -270,6 +279,9 @@ public class BasicCommsService implements SmartCardConstants {
 
 	public String doSignDocumentCommand(String sessionId, String prescReg, String document) {
 		Map<String, String> response = sendCommandAndWait(new TACommand(TACommand.SIGN, sessionId, prescReg, document));
+		if (response.isEmpty()) {
+			throw new SmartCardException("Error: No response");
+		}
 		String primaryResponse = response.get(KEY_PRIMARY_RESPONSE);
 		if (primaryResponse.startsWith("Error:")) {
 			throw new SmartCardException(primaryResponse);

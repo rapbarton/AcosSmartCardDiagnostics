@@ -135,7 +135,8 @@ public class SmartCardCommandProcessor implements CommandProcessor, SmartCardCon
 			responsePacket.addResponse(KEY_SESSION, controller.getSessionId());
 			Map<String, String> status = controller.getCertificateDetails();
 			responsePacket.addResponses(status);
-			
+			String encodedCertificate = controller.getCertificateEncoded();
+			responsePacket.addResponse(KEY_ENCODED, encodedCertificate);
 		} else {
 			responsePacket.setError("Failed to log in");
 		}
@@ -170,6 +171,7 @@ public class SmartCardCommandProcessor implements CommandProcessor, SmartCardCon
   		String dataToSign = arguments.get(2);
   		result = controller.doSignatureInSession(sessionID, prescReg, dataToSign);
   	}  	
+  	logger.info("SIGNATURE = " + result);
 		return TAResponse.buildResponse(commandPacket).addPrimaryResponse(result);
   }
   

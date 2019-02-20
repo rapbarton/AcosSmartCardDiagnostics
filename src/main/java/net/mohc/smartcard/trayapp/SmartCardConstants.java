@@ -23,6 +23,7 @@ public interface SmartCardConstants {
 	public static final String KEY_PRIMARY_RESPONSE = "primary";
 	public static final String KEY_SESSION = "sessionId";
 	public static final String KEY_CARD_INFO = "cardInfo";
+	public static final String KEY_ENCODED = "encodedCert";
 	
 	public static final String TRUE = "True";
 	public static final String FALSE = "False";

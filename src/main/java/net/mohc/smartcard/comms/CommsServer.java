@@ -5,44 +5,32 @@ import java.util.List;
 
 public class CommsServer {
   private static final int DEFAULT_PORT = 9311;
-  private int iTTPort = DEFAULT_PORT;
+  private int portNumber = DEFAULT_PORT;
   private CommsSocket socket;
   private ArrayList<String> queue;
 
-  Command command;
+  CommandProcessor commandProcessor;
 
   private CommsServer() {
   }
   
-	public CommsServer (int port) throws CommsException {
+	public CommsServer (int port, CommandProcessor commandProcessor) throws CommsException {
 		this();
-		this.iTTPort = port;
-		this.command = null;
+		this.portNumber = port;
+    this.commandProcessor = commandProcessor;
 		this.queue = new ArrayList<>();
-		
-		// create a Proxy socket object
-		socket = new CommsSocket(iTTPort, this);
-		
-		// set the Proxy object running
+		socket = new CommsSocket(portNumber, this);
 		socket.start();
 	}
 		
-	public void setCommandProcessor (CommandProcessor rcp) {
-    this.command = new Command (rcp);
-  }
-
-  protected Command getRemoteCommand () {
-    return command;
-  }
-
   public int getListenPort() {
-    return iTTPort;
+    return portNumber;
   }
 
   public void setListenPort(int port) throws CommsException {
     socket.closeComms();
-    iTTPort = port;
-    socket = new CommsSocket(iTTPort, this);
+    portNumber = port;
+    socket = new CommsSocket(portNumber, this);
     socket.start();
   }
 
