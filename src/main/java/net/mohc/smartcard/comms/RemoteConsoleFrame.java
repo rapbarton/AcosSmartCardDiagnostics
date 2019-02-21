@@ -9,7 +9,6 @@ import net.mohc.smartcard.trayapp.SmartCardConstants;
 
 import org.apache.log4j.Logger;
 
-import java.net.* ;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -18,34 +17,34 @@ public class RemoteConsoleFrame extends JFrame
 
   private static final String CONNECTED_REPLY = "Connected:";
 	private static final String SESSIONID_TAG = "[SESSIONID]";
-  private BasicCommsService bcs;
+  private BasicCommsService commsService;
   private static final String CONNECTED = "Connected";
   private static final String IDLE = "Not connected";
 
   Logger logger;
   JPanel contentPane;
-  JTextArea jTextArea1 = new JTextArea();
+  JTextField commandTextField = new JTextField();
   JComboBox<Option> commands = new JComboBox<>(getCommands());
-  JButton jButton1 = new JButton();
-  JButton jButton2 = new JButton();
-  //JButton jButton3 = new JButton();
-  JScrollPane jScrollPane1 = new JScrollPane();
-  JTextArea jTextAreaReply = new JTextArea();
-  JButton jButtonNew = new JButton();
-  JTextField jTextFieldIP = new JTextField();
-  JLabel jLabelIP = new JLabel();
+  JButton selectCommandButton = new JButton();
+  JButton clearCommandTextButton = new JButton();
+  JScrollPane scrollPane1 = new JScrollPane();
+  JTextArea consoleArea = new JTextArea();
+  JButton sendCommandButton = new JButton();
   GridBagLayout gridBagLayout1 = new GridBagLayout();
-  JButton jButtonConnect = new JButton();
-  JTextField jTextFieldConnected = new JTextField();
+  JButton connectButton = new JButton();
+  JTextField connectedStatusOutput = new JTextField();
   String sessionId = "";
+  ConnectionMonitor monitor;
+	boolean isConnected = false;
 
   /**Construct the frame*/
   public RemoteConsoleFrame() {
   	this.logger = Logger.getLogger(this.getClass());
     enableEvents(AWTEvent.WINDOW_EVENT_MASK);
     try {
-      jbInit();
-      bcs = BasicCommsService.getInstance(false);
+      init();
+      commsService = BasicCommsService.getInstance(false);
+      monitor = ConnectionMonitor.startMonitoring(this);
     } catch (CommsException rce) {
       logger.error(rce.getMessage());
     } catch (Exception e) {
@@ -75,18 +74,19 @@ public class RemoteConsoleFrame extends JFrame
 				new Option("Log in",TACommand.LOGIN),
 				new Option("Certificate Owner",TACommand.CERT_OWNER),
 				new Option("Certificate Details",TACommand.CERT_DETAIL),
+				new Option("Certificate Encoded",TACommand.CERT_ENCODED),
 				new Option("Log out",TACommand.QUIT+":signout"),
 				new Option("Sign",TACommand.SIGN+":"+SESSIONID_TAG+":123456:Test string"),
 				new Option("Close tray app",TACommand.QUIT+":shutdown")
 		};
 	}
-	/**Component initialization*/
-  private void jbInit() throws Exception  {
-    jButtonNew.setActionCommand("New");
-    jButtonNew.setText("Send Command");
-    jButtonNew.addActionListener(new java.awt.event.ActionListener() {
+	/**Component initialisation*/
+  private void init() throws Exception  {
+    sendCommandButton.setActionCommand("New");
+    sendCommandButton.setText("Send Command");
+    sendCommandButton.addActionListener(new java.awt.event.ActionListener() {
       public void actionPerformed(ActionEvent e) {
-        jButtonNew_actionPerformed(e);
+        doSendCommandAction(e);
       }
     });
     //setIconImage(Toolkit.getDefaultToolkit().createImage(RemoteConsoleFrame.class.getResource("[Your Icon]")));
@@ -94,64 +94,62 @@ public class RemoteConsoleFrame extends JFrame
     contentPane.setLayout(gridBagLayout1);
     this.setSize(new Dimension(600, 400));
     this.setTitle("SmartCard Tray Application Remote Console");
-    jLabelIP.setHorizontalAlignment(SwingConstants.TRAILING);
-    jLabelIP.setText("IP Address");
-    jTextFieldIP.setText("LOCALHOST");
-    jButtonConnect.setText("Connect");
-    jButtonConnect.addActionListener(new java.awt.event.ActionListener() {
+    connectButton.setText("Connect");
+    connectButton.addActionListener(new java.awt.event.ActionListener() {
       public void actionPerformed(ActionEvent e) {
-        jButtonConnect_actionPerformed(e);
+        doConnectAction(e);
       }
     });
-    jTextFieldConnected.setEditable(false);
-    jTextFieldConnected.setText(IDLE);
-    jTextArea1.setSelectionStart(0);
-    jTextArea1.setText("Enter command text here...");
-    jButton1.setToolTipText("Prepare command");
-    jButton1.setText("Select");
-    jButton1.addActionListener(new java.awt.event.ActionListener() {
+    connectedStatusOutput.setEditable(false);
+    connectedStatusOutput.setText(IDLE);
+    commandTextField.setSelectionStart(0);
+    commandTextField.setText("Enter command text here...");
+    selectCommandButton.setToolTipText("Prepare command");
+    selectCommandButton.setText("Refresh");
+    selectCommandButton.addActionListener(new java.awt.event.ActionListener() {
       public void actionPerformed(ActionEvent e) {
-        jButton1_actionPerformed(e);
+        doSelectCommandAction();
       }
     });
-    jButton2.setToolTipText("Clear command");
-    jButton2.setText("Clear");
-    jButton2.addActionListener(new java.awt.event.ActionListener() {
+    clearCommandTextButton.setToolTipText("Clear command");
+    clearCommandTextButton.setText("Clear");
+    clearCommandTextButton.addActionListener(new java.awt.event.ActionListener() {
       public void actionPerformed(ActionEvent e) {
-        jButton2_actionPerformed(e);
+        doClearCommandTextAction(e);
       }
     });
-//    jButton3.setToolTipText("Log in to card");
-//    jButton3.setText("Login");
-//    jButton3.addActionListener(new java.awt.event.ActionListener() {
-//      public void actionPerformed(ActionEvent e) {
-//        jButton3_actionPerformed(e);
-//      }
-//    });
-    jTextAreaReply.setBorder(BorderFactory.createLoweredBevelBorder());
-    jTextAreaReply.setBackground(UIManager.getColor("info"));
-    jTextAreaReply.setEditable(false);
-    contentPane.add(jLabelIP, new GridBagConstraints(0, 0, 1, 1, 0.2, 0.0
+    commands.addItemListener(new ItemListener() {
+			
+			@Override
+			public void itemStateChanged(ItemEvent e) {
+				if (e.getStateChange() == ItemEvent.SELECTED) {
+					doSelectCommandAction();
+				}
+			}
+		});
+    
+    consoleArea.setBorder(BorderFactory.createLoweredBevelBorder());
+    consoleArea.setBackground(UIManager.getColor("info"));
+    consoleArea.setEditable(false);
+    contentPane.add(connectButton, new GridBagConstraints(0, 0, 1, 1, 0.2, 0.0
             ,GridBagConstraints.EAST, GridBagConstraints.HORIZONTAL, new Insets(4, 4, 4, 30), 0, 0));
-    contentPane.add(jButtonNew, new GridBagConstraints(0, 1, 1, 1, 0.2, 0.0
-            ,GridBagConstraints.CENTER, GridBagConstraints.NONE, new Insets(4, 4, 4, 4), 0, 0));
-    contentPane.add(jButtonConnect, new GridBagConstraints(4, 0, 1, 1, 0.6, 0.0
+    contentPane.add(sendCommandButton, new GridBagConstraints(0, 3, 1, 1, 0.2, 0.0
+            ,GridBagConstraints.WEST, GridBagConstraints.NONE, new Insets(4, 4, 4, 4), 0, 0));
+    contentPane.add(connectedStatusOutput, new GridBagConstraints(4, 0, 1, 1, 0.6, 0.0
             ,GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(4, 4, 4, 4), 0, 0));
-    contentPane.add(jTextFieldIP, new GridBagConstraints(1, 0, 3, 1, 0.2, 0.0
-            ,GridBagConstraints.WEST, GridBagConstraints.HORIZONTAL, new Insets(4, 4, 4, 15), 80, 0));
-    contentPane.add(jTextFieldConnected, new GridBagConstraints(4, 1, 1, 1, 0.6, 0.0
-            ,GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(4, 4, 4, 4), 22, 0));
-    contentPane.add(jTextArea1, new GridBagConstraints(0, 2, 5, 1, 1.0, 1.0
+    contentPane.add(commandTextField, new GridBagConstraints(0, 2, 5, 1, 0.0, 0.0
             ,GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(4, 4, 4, 4), 0, 0));
-    contentPane.add(commands, new GridBagConstraints(1, 1, 1, 1, 0.0, 0.0
-            ,GridBagConstraints.CENTER, GridBagConstraints.NONE, new Insets(0, 0, 0, 0), 0, 0));
-    contentPane.add(jButton1, new GridBagConstraints(2, 1, 1, 1, 0.0, 0.0
+    contentPane.add(new JLabel("Select a command:"), new GridBagConstraints(0, 1, 1, 1, 0.0, 0.0
+        ,GridBagConstraints.EAST, GridBagConstraints.NONE, new Insets(4, 4, 4, 4), 0, 0));
+    contentPane.add(commands, new GridBagConstraints(1, 1, 2, 1, 0.0, 0.0
+        ,GridBagConstraints.WEST, GridBagConstraints.HORIZONTAL, new Insets(4, 4, 4, 4), 0, 0));
+    contentPane.add(selectCommandButton, new GridBagConstraints(3, 1, 1, 1, 0.0, 0.0
             ,GridBagConstraints.WEST, GridBagConstraints.NONE, new Insets(0, 0, 0, 0), 0, 0));
-    contentPane.add(jButton2, new GridBagConstraints(3, 1, 1, 1, 0.0, 0.0
+    contentPane.add(clearCommandTextButton, new GridBagConstraints(4, 1, 1, 1, 0.0, 0.0
             ,GridBagConstraints.WEST, GridBagConstraints.NONE, new Insets(0, 0, 0, 0), 0, 0));
-    contentPane.add(jScrollPane1, new GridBagConstraints(0, 3, 5, 1, 0.0, 0.0
+    contentPane.add(scrollPane1, new GridBagConstraints(0, 4, 5, 1, 1.0, 1.0
             ,GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(4, 4, 4, 4), 0, 40));
-    jScrollPane1.getViewport().add(jTextAreaReply, null);
+    scrollPane1.getViewport().add(consoleArea, null);
   }
   /**Overridden so we can exit when window is closed*/
   protected void processWindowEvent(WindowEvent e) {
@@ -161,66 +159,45 @@ public class RemoteConsoleFrame extends JFrame
     }
   }
 
-
-  void jButtonConnect_actionPerformed(ActionEvent ev) {
-    InetAddress ipAddr;
-    try {
-      String s = jTextFieldIP.getText();
-      if (s.equals("LOCALHOST")) {
-        ipAddr = InetAddress.getLocalHost();
-      } else {
-        ipAddr = InetAddress.getByName(s);
-      }
-      
-      bcs.startComms();
-      //rcc.connect(ipAddr);
-      //rcc.sendMessage("Test");
-
-    } catch(Exception ex) {
-      jTextFieldConnected.setText("Error");
-      System.out.println("ERROR: " + ex.toString());
-    }
-
+  void doConnectAction(ActionEvent ev) {
+  	try {
+			commsService.startComms();
+		} catch (CommsException e) {
+			connectedStatusOutput.setText("Failed connect request");
+		}
   }
 
-  void jButtonNew_actionPerformed(ActionEvent e) {
+  void doSendCommandAction(ActionEvent e) {
     try {
-      //rcc.sendMessage(jTextArea1.getText());
-    	
-    	bcs.sendCommand(new TACommand(jTextArea1.getText()), createHandler());
-    	
-      jTextFieldConnected.setText("Message sent");
+    	commsService.sendCommand(new TACommand(commandTextField.getText()), createHandler());
+      connectedStatusOutput.setText("Message sent");
     } catch(Exception ex) {
-      jTextFieldConnected.setText("Error");
+      connectedStatusOutput.setText("Error");
       System.out.println("ERROR: " + ex.toString());
     }
   }
 
-  void jButton1_actionPerformed(ActionEvent e) {
+  void doSelectCommandAction() {
   	Option option = (Option)commands.getSelectedItem();
   	String command = option.getCommand();
   	if (command.contains(SESSIONID_TAG) && !sessionId.isEmpty()) {
   		command = command.replace(SESSIONID_TAG, sessionId);
     }  	
-    jTextArea1.setText(command);
+    commandTextField.setText(command);
   }
 
-  void jButton2_actionPerformed(ActionEvent e) {
-    jTextArea1.setText("");
+  void doClearCommandTextAction(ActionEvent e) {
+    commandTextField.setText("");
   }
 
-/*  void jButton3_actionPerformed(ActionEvent e) {
-    jTextArea1.setText("Connect:331627");
-  }
-*/
   public void processReply (String sMsg) {
     if (sMsg.equals("TEST OK")) {
-      jTextFieldConnected.setText(CONNECTED);
+      connectedStatusOutput.setText(CONNECTED);
     }
     if (sMsg.startsWith(CONNECTED_REPLY)) {
     	sessionId = sMsg.replace(CONNECTED_REPLY, "").trim();
     }
-    jTextAreaReply.append(sMsg + "\n");
+    consoleArea.append(sMsg + "\n");
   }
 
   private TAResponseHandler createHandler() {
@@ -231,7 +208,7 @@ public class RemoteConsoleFrame extends JFrame
 				SwingUtilities.invokeLater(new Runnable() {
 					@Override
 					public void run() {
-						jTextAreaReply.append(convertResponsesToString(responses).trim() + "\n");
+						consoleArea.append(convertResponsesToString(responses).trim() + "\n");
 					}
 				});
 			}
@@ -241,7 +218,7 @@ public class RemoteConsoleFrame extends JFrame
 				SwingUtilities.invokeLater(new Runnable() {
 					@Override
 					public void run() {
-						jTextAreaReply.append("ERROR: " + errorMessage + "\n");
+						consoleArea.append("ERROR: " + errorMessage + "\n");
 					}
 				});
 			}
@@ -276,6 +253,32 @@ public class RemoteConsoleFrame extends JFrame
 		return sb.toString();
 	}
 
+	protected void doCheck() {
+		if (null == commsService) return;
+		boolean currentlyConnected = commsService.isAvailable();
+		boolean changed = isConnected != currentlyConnected;
+		if (changed) {
+			isConnected = currentlyConnected;
+			connectedStatusOutput.setText(currentlyConnected?CONNECTED:IDLE);
+			consoleArea.append("Service is now " + (currentlyConnected?CONNECTED:IDLE) + "\n");
+		}
+	}
 
+	private static class ConnectionMonitor extends Timer {
+		private ConnectionMonitor(int delay, ActionListener listener) {
+			super(delay, listener);
+			this.setRepeats(true);
+			this.setCoalesce(true);
+		}
+		public static ConnectionMonitor startMonitoring(final RemoteConsoleFrame parent) {
+			ConnectionMonitor instance = new ConnectionMonitor(250, new ActionListener() {
+				public void actionPerformed(ActionEvent e) {
+					parent.doCheck();
+				}
+			});
+			instance.start();
+			return instance;
+		}
+	}
   
 }
