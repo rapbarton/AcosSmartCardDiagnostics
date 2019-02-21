@@ -47,20 +47,18 @@ public class CommsClient {
 
   private synchronized void connect(InetAddress ip) throws CommsException {
     try {
-//      synchronized (lock) {
-      	if (isConnected()) {
-      		logger.info("Connection requested but ignoring because already connected");
-      	} else {
-	        ipAddr = ip;
-	        if (socket != null) {
-	      		logger.info("Closing an old socket");
-	        	disconnect();
-	        }
-	        socket = new Socket(ipAddr, iTTPort);
-	        bos = new BufferedOutputStream(socket.getOutputStream()) ;
-	        bis = new BufferedInputStream(socket.getInputStream()) ;
-      	}
-//      }
+    	if (isConnected()) {
+    		logger.info("Connection requested but ignoring because already connected");
+    	} else {
+        ipAddr = ip;
+        if (socket != null) {
+      		logger.info("Closing an old socket");
+        	disconnect();
+        }
+        socket = new Socket(ipAddr, iTTPort);
+        bos = new BufferedOutputStream(socket.getOutputStream()) ;
+        bis = new BufferedInputStream(socket.getInputStream()) ;
+    	}
     } catch(Exception ex) {
     	socket = null;
     	bos = null;
@@ -73,35 +71,31 @@ public class CommsClient {
    * Sends a message.
    */
   public synchronized boolean sendMessage (String msg) {
-//    synchronized (lock) {
   	RemoteMessage remoteMessage = new RemoteMessage();
-      remoteMessage.setMessage(new String(msg));
-      return remoteMessage.sendMessage(bos);
-//    }
+    remoteMessage.setMessage(new String(msg));
+    return remoteMessage.sendMessage(bos);
   }
 
   public synchronized void disconnect() {
-//    synchronized (lock) {
-    	if (isConnected()) {
-    		try {
-					socket.close();
-				} catch (IOException e) {}
-    	}
-    	socket = null;
-    	if (null != bis) {
-      	try {
-					bis.close();
-				} catch (IOException e) {}
-    	}
-    	bis = null;
-    	if (null != bos) {
-      	try {
-      		bos.close();
-				} catch (IOException e) {}
-    	}
-			bos = null;
-    }  	
-  //}
+  	if (isConnected()) {
+  		try {
+				socket.close();
+			} catch (IOException e) {}
+  	}
+  	socket = null;
+  	if (null != bis) {
+    	try {
+				bis.close();
+			} catch (IOException e) {}
+  	}
+  	bis = null;
+  	if (null != bos) {
+    	try {
+    		bos.close();
+			} catch (IOException e) {}
+  	}
+		bos = null;
+  }  	
   
   private void closeReceiver () {
   	if (null != receiver) {
@@ -119,17 +113,7 @@ public class CommsClient {
   }
 
   private void invokeProcessMessage(final String sMsg) {
-    //bConnected = true;
-//    Runnable r = new Runnable () {
-//      public void run () {
-        rcrh.processReply(new String (sMsg));
-//      }
-//    };
-//    try {
-//      javax.swing.SwingUtilities.invokeLater(r);
-//    } catch (Exception exc) {
-//      logger.info("Handled exception", exc);
-//    }
+  	rcrh.processReply(new String (sMsg));
   }
 
   class Receiver extends Thread {

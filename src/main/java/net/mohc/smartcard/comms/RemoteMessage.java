@@ -2,6 +2,8 @@ package net.mohc.smartcard.comms;
 
 import java.io.OutputStream;
 
+import org.apache.log4j.Logger;
+
 /**
  * This class is used to process messages used for remote control. <br>
  * The class is mutable in that the message represented may be changed as
@@ -46,12 +48,10 @@ import java.io.OutputStream;
  * </td></tr></tbody></table>
  * <hr width="30%">
  * <h2>message body</h2>
- * See {@link com.timingtool.rc.RemoteControl RemoteControl} for details of the
- * messages themselves.
  *
  * <br><br>
  * Copyright (c) 2002 MOHC Ltd. ALL RIGHTS RESERVED.
- * @author
+ * @author RAPB
  * @version 1.0
  */
 
@@ -64,13 +64,15 @@ public class RemoteMessage {
   private static final int START_TAG_LENGTH = START_TAG.length();
   private static final int END_TAG_LENGTH = END_TAG.length();
 
-  private String sMessage = null;
-  private String sError = "";
+  private String message = null;
+  private String lastError = "";
+  private Logger logger;
   
   /**
    * Creates class instance.
    */
   public RemoteMessage() {
+  	logger = Logger.getLogger(RemoteMessage.class);
   }
 
   /**
@@ -96,11 +98,11 @@ public class RemoteMessage {
         //remove header info
         result = removeHeader (msg);
         if (result == null) {
-          System.out.println("Bad message received: " + this.sError);
+          logger.info("Bad message received: " + this.lastError);
         }
       }
     }
-    this.sMessage = result;
+    this.message = result;
     return result;
   }
 
@@ -108,14 +110,14 @@ public class RemoteMessage {
    * Returns the message represented by this object
    */
   public String getMessage () {
-    return this.sMessage;
+    return this.message;
   }
 
   /**
    * Sets the message represented by this object
    */
   public void setMessage (String message) {
-    this.sMessage = message;
+    this.message = message;
   }
 
   /**
@@ -123,7 +125,7 @@ public class RemoteMessage {
    * object suitable for sending to the main application.
    */
   public String getFormattedMessage () {
-    return START_TAG + getHeader() + sMessage + END_TAG;
+    return START_TAG + getHeader() + message + END_TAG;
   }
 
   /**
@@ -147,11 +149,11 @@ public class RemoteMessage {
    * Gets the message content and strips the header. Checks the checksum and
    * returns the message if all OK. If not a null is returned.
    */
-  private String removeHeader(String msg) {
+  protected String removeHeader(String msg) {
     String result = null;
     String sLength, sCrc, sBody, sRemains;
     int iLength, iCrc;
-    sError = "bad message format";
+    lastError = "bad message format";
     int ix = msg.indexOf(":");
     if (ix > 0) {
       sLength = msg.substring(0,ix++);
@@ -167,16 +169,16 @@ public class RemoteMessage {
           iCrc = Integer.parseInt(sCrc, 16);
 
           if (sBody.length() != iLength) {
-            sError = "message length incorrect";
+            lastError = "message length incorrect";
           } else {
             if (iCrc != getCrc16(sBody)) {
-              sError = "message crc failure";
+              lastError = "message crc failure";
             } else {
               result = sBody;
             }
           }
         } catch (NumberFormatException nfe) {
-          sError = nfe.getMessage();
+          lastError = nfe.getMessage();
         }
       }
     }
@@ -197,8 +199,8 @@ public class RemoteMessage {
    *@return a header for prefixing to message content
    */
   private String getHeader() {
-    int len = sMessage.length();
-    int crc = getCrc16(sMessage);
+    int len = message.length();
+    int crc = getCrc16(message);
     return Integer.toHexString(len) + ":" + Integer.toHexString(crc) + ":";
   }
 
@@ -226,14 +228,8 @@ public class RemoteMessage {
     }
     return crc;
   }
-/*
-  private static long getCrc32(String s) {
-    CRC32 crc = new CRC32();
-    crc.reset();
-    if (s != null) {
-      crc.update(s.getBytes());
-    }
-    return crc.getValue();
+  
+  protected String getLastError() {
+  	return this.lastError;
   }
-  */
 }
