@@ -1,22 +1,13 @@
 package net.mohc.smartcard.trayapp;
 
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.concurrent.TimeUnit;
-
-import javax.swing.SwingUtilities;
-
 import org.apache.log4j.Logger;
 
 public class SmartCardApplicationLauncher extends Thread {
 	private static final long MIN_SECONDS_BEFORE_RETRY_STARTUP_COMMAND = 60;
 	private Logger logger;
-	private Runnable serviceStarter = null;
 	private long lastAttempt = 0;
 	private static SmartCardApplicationLauncher singletonInstance = null;
 	private boolean running = false;
@@ -74,9 +65,6 @@ public class SmartCardApplicationLauncher extends Thread {
 			String commandLine = getStartTrayCommand();
 			logger.info("Running command # " + commandLine);
 			final Process pr = rt.exec(commandLine);
-			
-//			BufferedReader in = new BufferedReader(new InputStreamReader(pr.getInputStream()));
-//			BufferedReader er = new BufferedReader(new InputStreamReader(pr.getErrorStream()));
 			InputStreamReader in = new InputStreamReader(pr.getInputStream());
 			InputStreamReader er = new InputStreamReader(pr.getErrorStream());
       StringBuilder stdLine = new StringBuilder();

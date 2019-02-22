@@ -7,13 +7,13 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.util.ArrayList;
-import java.util.List;
-
+import java.util.Calendar;
 import javax.swing.SwingUtilities;
 
 import org.apache.log4j.Logger;
 
 public class CommsClientConnection extends Thread {
+	private static final long TIME_TO_CHECK_CONNECTION_DEATH = 5;
 	private static int autoincrementIdNumber = 1;
 	private Logger logger;
 	private CommandProcessor commandProcessor;
@@ -24,9 +24,8 @@ public class CommsClientConnection extends Thread {
   private RemoteMessage remoteMessageHelper;
 	private JSonUtilities jsonUtils;
   private ArrayList<String> queue;
-  private boolean shutdownRequested = false;
-
-
+  private boolean shutdownRequested;
+  private long timeOfLastConnectionTest;
 
 	private CommsClientConnection(Socket socket, CommandProcessor commandProcessor) {
 		this.logger = Logger.getLogger(CommsClientConnection.class);
@@ -37,6 +36,8 @@ public class CommsClientConnection extends Thread {
 		this.remoteMessageHelper = new RemoteMessage();
     this.jsonUtils = JSonUtilities.getInstance();
 		this.queue = new ArrayList<>();
+		this.timeOfLastConnectionTest = timeNow();
+		this.shutdownRequested = false;
 	}
 	
 	private static synchronized int getNextId() {
@@ -68,21 +69,54 @@ public class CommsClientConnection extends Thread {
 				sleep(250);
 			} catch (InterruptedException e) {
 			}
+    	testConnection();
     }    
-    try {
-			currentSocket.close();
-		} catch (IOException e) {
-		}
-    try {
-			input.close();
-		} catch (IOException e) {
-		}
-    try {
-			output.close();
-		} catch (IOException e) {
-		}
+    clearReplyQueue();
+    closeAllStreams();
     logger.info("Client connection down");
   }
+
+  private void closeAllStreams() {
+    try {
+			if (null != currentSocket) {
+				currentSocket.close();
+			}
+		} catch (IOException e) {
+			logger.warn("socket did not close cleanly");
+		}
+    try {
+    	if (null != input) {
+    		input.close();
+    	}
+		} catch (IOException e) {
+			logger.warn("input did not close cleanly");
+		}
+    try {
+    	if (null != output) {
+    		output.close();
+    	}
+		} catch (IOException e) {
+			logger.warn("output did not close cleanly");
+		}
+  }
+  
+	private void testConnection() {
+		long timeNow = timeNow();
+		if ((timeNow - timeOfLastConnectionTest) > TIME_TO_CHECK_CONNECTION_DEATH) {
+			timeOfLastConnectionTest = timeNow;
+			try {
+				output.write(0); 
+				output.flush(); //This is the only way to truly detect other end has gone away
+			} catch (IOException e) {
+				logger.warn("Connection test failed - maybe client has gone away");
+				shutdownRequested = true;
+			}
+		}
+	}
+
+	protected long timeNow() {
+		return Calendar.getInstance().getTimeInMillis() / 1000l;
+	}
 
 	private void lookForIncomingMessages() {
     try {
@@ -148,6 +182,7 @@ public class CommsClientConnection extends Thread {
       rmr.setMessage(smr);
 			if (rmr.sendMessage(output)) {
 				logger.info( "RC Message Sent: " + smr);
+				timeOfLastConnectionTest = timeNow();
 			} else {
 				logger.error("RC Message failed to send");
 			}
@@ -160,10 +195,6 @@ public class CommsClientConnection extends Thread {
     }
   }
   
-  private List<String> getQueue() {
-		return queue;
-	}
-
   private String getNextMessageToSend() {
 		String smr = null;
 		synchronized (queue) {

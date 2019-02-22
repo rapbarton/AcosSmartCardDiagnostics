@@ -4,8 +4,6 @@ import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Map;
 
-import javax.swing.SwingUtilities;
-
 import net.mohc.smartcard.trayapp.SmartCardApplicationLauncher;
 import net.mohc.smartcard.trayapp.SmartCardConstants;
 import net.mohc.smartcard.trayapp.SmartCardException;
@@ -43,8 +41,7 @@ public class BasicCommsService implements SmartCardConstants {
 				startComms();
 			}
 		} catch (CommsException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			logger.error("Failure starting external Smart Card communications: " + e.getMessage());
 		}
 	}
 	
@@ -173,9 +170,9 @@ public class BasicCommsService implements SmartCardConstants {
 			@Override
 			public void messageResponse(Map<String, String> responses) {
 				synchronized (retval) {
-					logger.info("Message received (for \"" + command.getCommand() + "\")");
+					logger.debug("Message received (for \"" + command.getCommand() + "\")");
 					if (command.getCommand().equals("Sign")) {
-						logger.info("PRIMARY RXD HANDLER:" + responses.get(KEY_PRIMARY_RESPONSE));
+						logger.debug("PRIMARY RXD HANDLER:" + responses.get(KEY_PRIMARY_RESPONSE));
 					}
 					retval.putAll(responses);
 					retval.notify();
@@ -194,12 +191,11 @@ public class BasicCommsService implements SmartCardConstants {
 			sendCommand(command, handler);
 			try {
 				retval.wait(DEFAULT_TIMEOUT * 1000l);
-				//logger.info("Timeout waiting for command response");
 			} catch (InterruptedException e) {
 				logger.info("Command interrupted");
 			}
 			if (command.getCommand().equals("Sign")) {
-				logger.info("PRIMARY RXD MAIN:" + retval.get(KEY_PRIMARY_RESPONSE));
+				logger.debug("PRIMARY RXD MAIN:" + retval.get(KEY_PRIMARY_RESPONSE));
 			}
 		}
 		return retval;
@@ -219,7 +215,6 @@ public class BasicCommsService implements SmartCardConstants {
 	}
 
 	private void _processReply(String msgInJson) {
-		//logger.info("Received a reply \"" + msg + "\"");
 		TAResponse response = jsonUtils.convertResponseFromJson(msgInJson);
 		if (null == response) {
 			logger.error("Bad response packet received");

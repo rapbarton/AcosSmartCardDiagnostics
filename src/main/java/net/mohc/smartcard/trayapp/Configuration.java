@@ -1,7 +1,6 @@
 package net.mohc.smartcard.trayapp;
 
 import java.io.File;
-import java.net.URL;
 import java.util.HashMap;
 import java.util.Properties;
 
@@ -12,7 +11,6 @@ public class Configuration  implements SmartCardConstants {
 	private static final String ACOS_DLL_FILENAME_64BIT = "acospkcs11v4x64.dll";
 	private HashMap<String, String> dllNames32bit;
 	private HashMap<String, String> dllNames64bit;
-	//private String pathForDll = ".";
 	private String separator = "/";
 	
 	private static Configuration instance = new Configuration();
@@ -36,7 +34,6 @@ public class Configuration  implements SmartCardConstants {
 
 	public File getDllForAcos() {
 		return findPathForDll(TERMINAL_TYPE_ACOS);
-//		return new File(DEFAULT_DLL_PATH);
 	}
 
 	private File findPathForDll(String cardType) {
@@ -46,14 +43,6 @@ public class Configuration  implements SmartCardConstants {
 		}
 		String dllPath = System.getProperty("location.dll", ".");
 		return new File(dllPath + separator + filename);		
-//		URL url = getClass().getClassLoader().getResource("resources" + separator + filename);
-//		if (null == url) {
-//			url = getClass().getClassLoader().getResource(filename);
-//			if (null == url) {
-//				return new File (filename);
-//			}
-//		}		
-//		return new File(url.getFile());
 	}
 
 	private boolean is64bit0() {

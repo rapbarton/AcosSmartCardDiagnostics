@@ -97,13 +97,6 @@ public class CommsClient {
 		bos = null;
   }  	
   
-  private void closeReceiver () {
-  	if (null != receiver) {
-  		receiver.close();
-  		receiver = null;
-  	}
-  }
-
   /**
    * Returns true once a valid message has been received, false if connection
    * broken or not yet established.

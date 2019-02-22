@@ -45,7 +45,17 @@ public class PinDialog {
 			public void ancestorAdded(AncestorEvent event) {
 				tmpFrame.toFront();
 				dialogue.toFront();
+				dialogue.requestFocusInWindow();
 				pinField.requestFocusInWindow();
+				SwingUtilities.invokeLater(new Runnable() {
+					@Override
+					public void run() {
+						if(!pinField.isRequestFocusEnabled()) { 
+							pinField.setRequestFocusEnabled(true); 
+						}
+						pinField.requestFocus();
+					}
+				});
 			}
 			public void ancestorMoved(AncestorEvent event) {}
 			public void ancestorRemoved(AncestorEvent event) {}
