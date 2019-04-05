@@ -10,6 +10,7 @@ import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.SwingConstants;
 
+import net.mohc.smartcard.manage.PinUtilities;
 import net.mohc.smartcard.utils.RiverLayout;
 
 public class ToolsPanel extends JPanel {
@@ -24,6 +25,7 @@ public class ToolsPanel extends JPanel {
 	private JTextField certificateStatusField;
 	private JTextField signatureField;
 	private JLabel cardPicture;
+	private JButton experimentalButton;
 
 	
 	public ToolsPanel () {
@@ -60,6 +62,8 @@ public class ToolsPanel extends JPanel {
 		add("br", connectButton = new JButton("Open keystore"));
 		add("tab", signTestStringButton = new JButton("Test signing using card"));
 		signatureField = createJTextField("Resultant Signature");
+		add("br", experimentalButton = new JButton("Experimental"));
+		
 	}
 
 	private JTextField createJTextField(String nameOfField) {
@@ -71,11 +75,6 @@ public class ToolsPanel extends JPanel {
 	}
 
 	private void initActions() {
-//		refreshButton.addActionListener(new ActionListener() {
-//			public void actionPerformed(ActionEvent arg0) {
-//				doRefreshAction();
-//			}
-//		});
 		connectButton.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
 				doConnectAction();
@@ -84,6 +83,12 @@ public class ToolsPanel extends JPanel {
 		signTestStringButton.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
 				doSigningAction();
+			}
+		});
+
+		experimentalButton.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent arg0) {
+				doExperimentAction();
 			}
 		});
 		
@@ -122,4 +127,8 @@ public class ToolsPanel extends JPanel {
 		signatureField.setText(signature);
 	}
 
+	protected void doExperimentAction() {
+		PinUtilities pu = new PinUtilities();
+		pu.doExperiment(smartCardController);
+	}
 }

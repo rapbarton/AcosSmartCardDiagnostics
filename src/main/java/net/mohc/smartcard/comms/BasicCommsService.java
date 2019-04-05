@@ -20,6 +20,7 @@ public class BasicCommsService implements SmartCardConstants {
 	private HashMap<String, TAResponseHandler> handlers;
 	JSonUtilities jsonUtils;
 	private Thread commsStarter = null;
+	private Object msgReceivedNotificationObject;
 
 	public static BasicCommsService getInstance(boolean autostart) {
 		if (null == singletonInstance) singletonInstance = new BasicCommsService(autostart);
@@ -225,6 +226,10 @@ public class BasicCommsService implements SmartCardConstants {
 			TAResponseHandler handler = handlers.get(commandId);
 			handlers.remove(commandId);
 			invokeHandler(handler, response);
+		} else if (TACommand.CARD_STATUS.equals(commandId)) { 
+			synchronized (msgReceivedNotificationObject) {
+				msgReceivedNotificationObject.notify();
+			}
 		} else {
 			logger.error("No handler for response packet received");
 		}
@@ -288,6 +293,10 @@ public class BasicCommsService implements SmartCardConstants {
 	public String doGetEncodedCertificate() {
 		Map<String, String> response = sendCommandAndWait(new TACommand(TACommand.CERT_ENCODED));
 		return response.get(KEY_PRIMARY_RESPONSE);
+	}
+
+	public void setCardAvailableListener(Object msgReceivedNotificationObject) {
+		this.msgReceivedNotificationObject = msgReceivedNotificationObject;
 	}
 
 }

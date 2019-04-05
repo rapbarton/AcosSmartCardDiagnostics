@@ -6,11 +6,13 @@ public interface SmartCardConstants {
 	public static final int TERMINAL_FOUND = 2;
 	public static final int CARD_PRESENT = 3;
 	public static final int SESSION_ACTIVE = 4;
+	public static final int DUMMY_TERMINAL = 5;
 		
 	public static final String TERMINAL_TYPE_NONE = "None";
 	public static final String TERMINAL_TYPE_ACOS = "ACOS";
 	public static final String TERMINAL_TYPE_FEITIAN = "FEITIAN";
 	public static final String TERMINAL_TYPE_OTHER = "Unrecognised";
+	public static final String TERMINAL_TYPE_DUMMY = "Dummy P12";
 	
 	public static final String SMART_CARD_TBD = "Checking for card";
 	public static final String SMART_CARD_INSERTED = "Found a card";

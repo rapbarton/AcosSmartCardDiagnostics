@@ -48,6 +48,9 @@ public class Status implements SmartCardConstants {
 			case SESSION_ACTIVE:
 				imageName = "smart-card-connected-24";
 				break;
+			case DUMMY_TERMINAL:
+				imageName = "smart-card-dummy-24";
+				break;
 		}		
 		return imageHelper.getImage(imageName);
 	}
@@ -59,6 +62,7 @@ public class Status implements SmartCardConstants {
 			case TERMINAL_FOUND: return "Waiting for card";
 			case CARD_PRESENT: return "Card present";
 			case SESSION_ACTIVE: return "Active";
+			case DUMMY_TERMINAL: return "Dummy key store";
 			default: return "?";
 		}		
 	}

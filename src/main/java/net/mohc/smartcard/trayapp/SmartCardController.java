@@ -3,6 +3,7 @@ package net.mohc.smartcard.trayapp;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
+import java.io.FilenameFilter;
 import java.security.GeneralSecurityException;
 import java.security.Provider;
 import java.security.Provider.Service;
@@ -15,8 +16,11 @@ import java.util.Set;
 import java.util.Vector;
 
 import javax.smartcardio.Card;
+import javax.smartcardio.CardChannel;
 import javax.smartcardio.CardException;
 import javax.smartcardio.CardTerminal;
+import javax.smartcardio.CommandAPDU;
+import javax.smartcardio.ResponseAPDU;
 import javax.smartcardio.TerminalFactory;
 import javax.swing.Icon;
 import javax.swing.Timer;
@@ -31,13 +35,14 @@ public class SmartCardController implements SmartCardConstants {
 	private static final int CONTROL_LOOP_PERIOD = 1000;
 	private static SmartCardController instance = null;
 	private File selectedLibraryFile = null;
-  TerminalFactory factory;
-  List<CardTerminal> terminals;
-  CardTerminal selectedCardTerminal = null;
-  Provider provider;
+  private TerminalFactory factory;
+  private List<CardTerminal> terminals;
+  private CardTerminal selectedCardTerminal = null;
+  private Provider provider;
 	private Card connectedCard;
 	private boolean cardPresent;
 	private String cardPresentStatus = SMART_CARD_TBD;
+	private String cardPresentStatusOld = SMART_CARD_TBD;
 	private boolean cardConnected;
 	private String cardConnectedStatus = "";
   private SmartCardKeyStore smartCardKeyStore;
@@ -70,12 +75,20 @@ public class SmartCardController implements SmartCardConstants {
 	private void startControlLoop() {
 		Timer controlLoop = new Timer(CONTROL_LOOP_PERIOD, new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				controlActions();				
+				controlActions();
+				if (!cardPresentStatusOld.equals(cardPresentStatus)) {
+					cardPresentStatusOld = cardPresentStatus;
+					doActionWhenStatusChanges();
+				}
 			}
 		});
 		controlLoop.start();		
 	}
 	
+	public void doActionWhenStatusChanges() {
+		
+	};
+
 	private void controlActions() {
 		try {
 			switch (status.getCurrentStatus()) {
@@ -87,6 +100,7 @@ public class SmartCardController implements SmartCardConstants {
 			case TERMINAL_FOUND:
 			case CARD_PRESENT:
 			case SESSION_ACTIVE:
+			case DUMMY_TERMINAL:
 				if (!isExpectedTerminalStillConnected()) {
 					logger.info("Card reader unplugged");
 					reset();
@@ -109,11 +123,14 @@ public class SmartCardController implements SmartCardConstants {
 		CardTerminal proposed = findBestTerminalOrNull();
 		if (!status.getCurrentTerminal().equals(TERMINAL_TYPE_ACOS) && proposed != null) {
 			changeTerminal(proposed);
-		} else if (!status.getCurrentTerminal().equals(TERMINAL_TYPE_NONE) && proposed == null) {
+		} else if (!status.getCurrentTerminal().equals(TERMINAL_TYPE_NONE) && !status.getCurrentTerminal().equals(TERMINAL_TYPE_DUMMY) && proposed == null) {
 			reset();
 		} 
 		if (status.getCurrentStatus() == NOT_INITIALISED) {
 			reset();
+		}
+		if (status.getCurrentTerminal().equals(TERMINAL_TYPE_NONE)) {
+			configureOptionalP12();
 		}
 	}
 
@@ -140,7 +157,11 @@ public class SmartCardController implements SmartCardConstants {
 				cardPresent = false;
 				cardPresentStatus = SMART_CARD_ERROR;
 			}
-		} 
+		} else if (status.getCurrentStatus() == DUMMY_TERMINAL) {
+			cardPresent = true;
+			cardPresentStatus = SMART_CARD_INSERTED;
+			cardConnectedStatus = "Connected";
+		}
 	}
 	
 	private void selectAppropriateDll() {
@@ -193,6 +214,8 @@ public class SmartCardController implements SmartCardConstants {
 			} catch (CardException e) {
 				return false;
 			}			
+		} else if (status.getCurrentStatus() == DUMMY_TERMINAL) {
+			return areThereP12s();
 		}
 		return true;//Kinda expecting no terminal
 	}
@@ -234,9 +257,13 @@ public class SmartCardController implements SmartCardConstants {
 	private void changeTerminal(CardTerminal terminal) {
 		if (null == terminal) {
 			selectedCardTerminal = null;
-			status.setCurrentTerminal(TERMINAL_TYPE_NONE);
-			selectAppropriateDll();
-			status.setCurrentStatus(Status.NO_TERMINAL);
+			if (status.getCurrentStatus() == Status.DUMMY_TERMINAL) {
+				status.setCurrentTerminal(TERMINAL_TYPE_DUMMY);
+			} else {
+				status.setCurrentTerminal(TERMINAL_TYPE_NONE);
+				selectAppropriateDll();
+				status.setCurrentStatus(Status.NO_TERMINAL);
+			}
 		} else if (null == selectedCardTerminal || !selectedCardTerminal.getName().equals(terminal.getName())) {
 			selectedCardTerminal = terminal;
 			if (isTerminalACOS(terminal)) {
@@ -465,6 +492,8 @@ public class SmartCardController implements SmartCardConstants {
 			imageName = "ACR38_70";
 		} else if (isTerminalFeitian(selectedCardTerminal)) {
 			imageName = "FT_R301_70";
+		} else if (status.getCurrentStatus() == DUMMY_TERMINAL) {
+			imageName = "Certificate";
 		}
 		return imageHelper.getIcon(imageName);
 	}
@@ -540,5 +569,42 @@ public class SmartCardController implements SmartCardConstants {
 		}
 		throw new CertificateException("No certificates found");
 	}
+
+	public CardTerminal getSelectedCardTerminal() {
+		return this.selectedCardTerminal;
+	}
+	
+	public Card getConnectedCard () {
+		return this.connectedCard;
+	}
+	
+	private void configureOptionalP12() {
+		if (areThereP12s()){
+			status.setCurrentStatus(DUMMY_TERMINAL);
+			changeTerminal(null);
+		}		
+	}
+	
+	private boolean areThereP12s() {
+		return getP12s().length > 0;
+	}
+	
+	private File[] getP12s () {
+		String home = System.getProperty("user.dir");
+		String slash = System.getProperty("file.separator");
+		String p12Files = home + slash + "p12";
+		File file = new File(p12Files);
+		if (file.exists() && file.isDirectory()) {
+			FilenameFilter filter = new FilenameFilter() {
+				@Override
+				public boolean accept(File dir, String name) {
+					return name.endsWith(".p12");
+				}
+			};
+			return file.listFiles(filter );
+		}		
+		return new File[0];
+	}
+	
 
 }
