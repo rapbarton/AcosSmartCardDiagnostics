@@ -3,12 +3,12 @@ package net.mohc.smartcard.trayapp;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
-import java.io.FilenameFilter;
 import java.security.GeneralSecurityException;
 import java.security.Provider;
 import java.security.Provider.Service;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -96,7 +96,6 @@ public class SmartCardController implements SmartCardConstants {
 			case TERMINAL_FOUND:
 			case CARD_PRESENT:
 			case SESSION_ACTIVE:
-			case DUMMY_TERMINAL:
 				if (!isExpectedTerminalStillConnected()) {
 					logger.info("Card reader unplugged");
 					reset();
@@ -125,9 +124,6 @@ public class SmartCardController implements SmartCardConstants {
 		if (status.getCurrentStatus() == NOT_INITIALISED) {
 			reset();
 		}
-		if (status.getCurrentTerminal().equals(TERMINAL_TYPE_NONE)) {
-			configureOptionalP12();
-		}
 	}
 
 	private void monitorCards() {
@@ -153,10 +149,10 @@ public class SmartCardController implements SmartCardConstants {
 				cardPresent = false;
 				cardPresentStatus = SMART_CARD_ERROR;
 			}
-		} else if (status.getCurrentStatus() == DUMMY_TERMINAL) {
-			cardPresent = true;
-			cardPresentStatus = SMART_CARD_INSERTED;
-			cardConnectedStatus = "Connected";
+//		} else if (status.getCurrentStatus() == DUMMY_TERMINAL) {
+//			cardPresent = true;
+//			cardPresentStatus = SMART_CARD_INSERTED;
+//			cardConnectedStatus = "Connected";
 		}
 	}
 	
@@ -164,6 +160,8 @@ public class SmartCardController implements SmartCardConstants {
 		if (hasATerminal()) {
 			if (status.isAcos()) {
 				selectedLibraryFile = Configuration.getInstance().getDllForAcos();
+			} else if (status.isDummy()) {
+				selectedLibraryFile = null;
 			} else {
 				logger.error("No dll available for this type of terminal");
 				selectedLibraryFile = null;
@@ -200,52 +198,78 @@ public class SmartCardController implements SmartCardConstants {
 		if (selectedCardTerminal != null) {
 			List<CardTerminal> terminals;
 			try {
-				terminals = factory.terminals().list();
+				terminals = getTerminalList();
 				for (CardTerminal cardTerminal : terminals) {
 					if (selectedCardTerminal.equals(cardTerminal)) {
 						return true;
 					}
 				}
 				return false;
-			} catch (CardException e) {
+			} catch (SmartCardApplicationException e) {
 				return false;
 			}			
-		} else if (status.getCurrentStatus() == DUMMY_TERMINAL) {
-			return areThereP12s();
 		}
 		return true;//Kinda expecting no terminal
 	}
 	
-	private CardTerminal findBestTerminalOrNull () {
-		List<CardTerminal> terminals;
+	private List<CardTerminal> getTerminalList() {
+		ArrayList<CardTerminal> terminals = new ArrayList<>();
 		try {
-			terminals = factory.terminals().list();
-			if (null == terminals || terminals.isEmpty()) {
-				return null;
+			List<CardTerminal> factoryList = factory.terminals().list();
+			if (null != factoryList) {
+				terminals.addAll(factoryList) ;
 			}
-			for (CardTerminal cardTerminal : terminals) {
-				if (isTerminalACOS(cardTerminal)) {
-					return cardTerminal;
-				}
-			}		
-			return terminals.get(0);
 		} catch (CardException e) {
 			Throwable cause = e.getCause();
 			if (null != cause) {
 				String reason = cause.getMessage();
 				if (reason.equals("SCARD_E_SERVICE_STOPPED")) {
 					throw new SmartCardApplicationException("Known bug in library causes fatal problem when reader service stops where no card readers are plugged in");
+				} else if (!reason.equals("SCARD_E_NO_READERS_AVAILABLE")) {
+					logger.debug("Can't see any card readers because " + reason);
 				}
 			}
-			//Service has probably shut down
+		}
+		CardTerminal dummyTerminal = getDummyTerminal();
+		if (null != dummyTerminal) {
+			terminals.add(dummyTerminal);
+		}			
+		return terminals;
+	}
+	
+	private CardTerminal findBestTerminalOrNull () {
+		List<CardTerminal> terminals = getTerminalList();
+		if (terminals.isEmpty()) {
 			return null;
 		}
+		//First choice is ACOS for Windows
+		if (Configuration.getInstance().isWindows()) {
+			for (CardTerminal cardTerminal : terminals) {
+				if (isTerminalACOS(cardTerminal)) {
+					return cardTerminal;
+				}
+			}
+		}
+		//Second choice is dummy
+		for (CardTerminal cardTerminal : terminals) {
+			if (isTerminalDummy(cardTerminal)) {
+				return cardTerminal;
+			}
+		}
+		//Otherwise just pick first in list
+		return terminals.get(0);
 	}
 
 	private boolean isTerminalACOS(CardTerminal terminal) {
 		if (null == terminal) return false;
 		String name = terminal.getName();
 		return name.contains("ACS CCID USB Reader") || name.contains("ACS ACR 38");
+	}
+	
+	private boolean isTerminalDummy(CardTerminal terminal) {
+		if (null == terminal) return false;
+		String name = terminal.getName();
+		return name.equals(P12CardTerminal.TERMINAL_NAME);
 	}
 	
 	private boolean isTerminalFeitian(CardTerminal terminal) {
@@ -255,21 +279,20 @@ public class SmartCardController implements SmartCardConstants {
 	private void changeTerminal(CardTerminal terminal) {
 		if (null == terminal) {
 			selectedCardTerminal = null;
-			if (status.getCurrentStatus() == Status.DUMMY_TERMINAL) {
-				status.setCurrentTerminal(TERMINAL_TYPE_DUMMY);
-			} else {
-				status.setCurrentTerminal(TERMINAL_TYPE_NONE);
-				selectAppropriateDll();
-				status.setCurrentStatus(Status.NO_TERMINAL);
-			}
+			status.setCurrentTerminal(TERMINAL_TYPE_NONE);
+			selectAppropriateDll();
+			status.setCurrentStatus(Status.NO_TERMINAL);
 		} else if (null == selectedCardTerminal || !selectedCardTerminal.getName().equals(terminal.getName())) {
 			selectedCardTerminal = terminal;
 			if (isTerminalACOS(terminal)) {
 				status.setCurrentTerminal(TERMINAL_TYPE_ACOS);
 				logger.info("Found ACOS reader");
 			} else if (isTerminalFeitian(terminal)) {
-					status.setCurrentTerminal(TERMINAL_TYPE_FEITIAN);
-					logger.info("Found Feitian reader");
+				status.setCurrentTerminal(TERMINAL_TYPE_FEITIAN);
+				logger.info("Found Feitian reader");
+			} else if (isTerminalDummy(terminal)) {
+				status.setCurrentTerminal(TERMINAL_TYPE_DUMMY);
+				logger.info("Found P12 directory reader");
 			} else {
 				status.setCurrentTerminal(TERMINAL_TYPE_OTHER);
 				logger.info("Found unrecognised reader");
@@ -394,7 +417,11 @@ public class SmartCardController implements SmartCardConstants {
 	public void openKeystore() {
 		if (null == smartCardKeyStore) {
 			try {
-		  	smartCardKeyStore = new SmartCardKeyStore(getPkcsLibraryFilename());
+				if (status.isDummy()) {
+					smartCardKeyStore = new SmartCardKeyStore(connectedCard);
+				} else {
+			  	smartCardKeyStore = new SmartCardKeyStore(getPkcsLibraryFilename());
+				}
 		  	validCertificate = smartCardKeyStore.isValidAndSetStatus();
 				certificateStatus = smartCardKeyStore.getStatus();
 				status.setCurrentStatus(SESSION_ACTIVE);
@@ -471,9 +498,8 @@ public class SmartCardController implements SmartCardConstants {
 	}
 
 	public void shutdown() {
-		//TODO Shut down in an orderly fashion
+		logger.info("Shutdown Now");
 		System.exit(0);             
-		
 	}
 
 	public Status getStatus() {
@@ -490,7 +516,7 @@ public class SmartCardController implements SmartCardConstants {
 			imageName = "ACR38_70";
 		} else if (isTerminalFeitian(selectedCardTerminal)) {
 			imageName = "FT_R301_70";
-		} else if (status.getCurrentStatus() == DUMMY_TERMINAL) {
+		} else if (isTerminalDummy(selectedCardTerminal)) {
 			imageName = "Certificate";
 		}
 		return imageHelper.getIcon(imageName);
@@ -576,33 +602,10 @@ public class SmartCardController implements SmartCardConstants {
 		return this.connectedCard;
 	}
 	
-	private void configureOptionalP12() {
-		if (areThereP12s()){
-			status.setCurrentStatus(DUMMY_TERMINAL);
-			changeTerminal(null);
-		}		
+	private CardTerminal getDummyTerminal() {
+		return P12CardTerminalFactory.getP12CardTerminal();
 	}
 	
-	private boolean areThereP12s() {
-		return getP12s().length > 0;
-	}
-	
-	private File[] getP12s () {
-		String home = System.getProperty("user.dir");
-		String slash = System.getProperty("file.separator");
-		String p12Files = home + slash + "p12";
-		File file = new File(p12Files);
-		if (file.exists() && file.isDirectory()) {
-			FilenameFilter filter = new FilenameFilter() {
-				@Override
-				public boolean accept(File dir, String name) {
-					return name.endsWith(".p12");
-				}
-			};
-			return file.listFiles(filter );
-		}		
-		return new File[0];
-	}
 	
 
 }

@@ -1,6 +1,9 @@
 package net.mohc.smartcard.trayapp;
 
 import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
@@ -14,6 +17,7 @@ import java.security.ProviderException;
 import java.security.PublicKey;
 import java.security.Security;
 import java.security.Signature;
+import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateExpiredException;
@@ -34,6 +38,7 @@ import javax.security.auth.callback.CallbackHandler;
 import javax.security.auth.callback.PasswordCallback;
 import javax.security.auth.callback.UnsupportedCallbackException;
 import javax.security.auth.login.LoginException;
+import javax.smartcardio.Card;
 
 import org.apache.log4j.Logger;
 
@@ -109,6 +114,49 @@ public class SmartCardKeyStore implements SmartCardConstants {
 		}
 	}
 	
+	public SmartCardKeyStore(Card card) {
+		if (card instanceof P12Card) {
+			File p12File = ((P12Card)card).getP12File();
+			FileInputStream p12Stream = null;
+			try {
+				p12Stream = new FileInputStream(p12File);
+			} catch (FileNotFoundException e) {
+				reportFatalProblemAndGiveUp("Exception loading keystore: " + e.getMessage());
+			}
+			KeyStore keystore = null;
+			try {
+				keystore = KeyStore.getInstance("PKCS12");
+			} catch (KeyStoreException e) {
+				reportFatalProblemAndGiveUp("KeyStoreException: " + e.getMessage());
+			}			 
+			char[] p12Password = PinDialog.showPinDialog(null);
+			try {
+				keystore.load(p12Stream, p12Password );
+			} catch (NoSuchAlgorithmException | CertificateException | IOException e) {
+				reportFatalProblemAndGiveUp("Exception loading keystore: " + e.getMessage());
+			}
+			Enumeration<String> aliases;
+			try {
+				aliases = keystore.aliases();
+				String keyAlias = "";
+				while (aliases.hasMoreElements()) {
+			    keyAlias = (String) aliases.nextElement();
+				}
+				PrivateKey key = (PrivateKey)keystore.getKey(keyAlias, p12Password);
+				logger.info("Got a key!");
+				
+				
+			} catch (KeyStoreException e) {
+				reportFatalProblemAndGiveUp("KeyStoreException: " + e.getMessage());
+			} catch (UnrecoverableKeyException e) {
+				reportFatalProblemAndGiveUp("UnrecoverableKeyException: " + e.getMessage());
+			} catch (NoSuchAlgorithmException e) {
+				reportFatalProblemAndGiveUp("NoSuchAlgorithmException: " + e.getMessage());
+			}
+		}
+		reportFatalProblemAndGiveUp("Not a P12Card");
+	}
+
 	public void loadPrivateKeyAndCertChain() throws GeneralSecurityException {
 		Enumeration<?> aliasesEnum = ks.aliases();
 		String alias;

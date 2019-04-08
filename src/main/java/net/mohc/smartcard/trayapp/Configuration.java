@@ -50,10 +50,18 @@ public class Configuration  implements SmartCardConstants {
 		return new File(dllPath + separator + filename);		
 	}
 
-	private boolean isLinux() {
+	public boolean isLinux() {
 		String systemOs = System.getProperty("os.name");
 	  if (systemOs != null) {
 	     return systemOs.contains("nux");
+	  }
+	  return false;
+	}
+
+	public boolean isWindows() {
+		String systemOs = System.getProperty("os.name");
+	  if (systemOs != null) {
+	     return systemOs.contains("win");
 	  }
 	  return false;
 	}

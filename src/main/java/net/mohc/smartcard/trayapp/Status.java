@@ -43,14 +43,18 @@ public class Status implements SmartCardConstants {
 				imageName = "smart-card-error-24";
 				break;
 			case CARD_PRESENT:
-				imageName = "smart-card-24";
+				if (isDummy()) {
+					imageName = "smart-card-dummy-24";
+				} else {
+					imageName = "smart-card-24";
+				}
 				break;
 			case SESSION_ACTIVE:
 				imageName = "smart-card-connected-24";
 				break;
-			case DUMMY_TERMINAL:
-				imageName = "smart-card-dummy-24";
-				break;
+//			case DUMMY_TERMINAL:
+//				imageName = "smart-card-dummy-24";
+//				break;
 		}		
 		return imageHelper.getImage(imageName);
 	}
@@ -62,7 +66,6 @@ public class Status implements SmartCardConstants {
 			case TERMINAL_FOUND: return "Waiting for card";
 			case CARD_PRESENT: return "Card present";
 			case SESSION_ACTIVE: return "Active";
-			case DUMMY_TERMINAL: return "Dummy key store";
 			default: return "?";
 		}		
 	}
@@ -77,6 +80,10 @@ public class Status implements SmartCardConstants {
 
 	public boolean isAcos() {
 		return currentTerminal.equals(TERMINAL_TYPE_ACOS);
+	}
+
+	public boolean isDummy() {
+		return currentTerminal.equals(TERMINAL_TYPE_DUMMY);
 	}
 
 	public void addStatusChangeListener(StatusChangeListener statusChangeListener ) {
