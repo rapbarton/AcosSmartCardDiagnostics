@@ -16,11 +16,8 @@ import java.util.Set;
 import java.util.Vector;
 
 import javax.smartcardio.Card;
-import javax.smartcardio.CardChannel;
 import javax.smartcardio.CardException;
 import javax.smartcardio.CardTerminal;
-import javax.smartcardio.CommandAPDU;
-import javax.smartcardio.ResponseAPDU;
 import javax.smartcardio.TerminalFactory;
 import javax.swing.Icon;
 import javax.swing.Timer;
@@ -36,7 +33,6 @@ public class SmartCardController implements SmartCardConstants {
 	private static SmartCardController instance = null;
 	private File selectedLibraryFile = null;
   private TerminalFactory factory;
-  private List<CardTerminal> terminals;
   private CardTerminal selectedCardTerminal = null;
   private Provider provider;
 	private Card connectedCard;
@@ -86,7 +82,7 @@ public class SmartCardController implements SmartCardConstants {
 	}
 	
 	public void doActionWhenStatusChanges() {
-		
+		logger.info("Card state change");
 	};
 
 	private void controlActions() {
@@ -224,7 +220,7 @@ public class SmartCardController implements SmartCardConstants {
 		List<CardTerminal> terminals;
 		try {
 			terminals = factory.terminals().list();
-			if (null == terminals || terminals.size() == 0) {
+			if (null == terminals || terminals.isEmpty()) {
 				return null;
 			}
 			for (CardTerminal cardTerminal : terminals) {
@@ -247,7 +243,9 @@ public class SmartCardController implements SmartCardConstants {
 	}
 
 	private boolean isTerminalACOS(CardTerminal terminal) {
-		return null != terminal && terminal.getName().contains("ACS CCID USB Reader");
+		if (null == terminal) return false;
+		String name = terminal.getName();
+		return name.contains("ACS CCID USB Reader") || name.contains("ACS ACR 38");
 	}
 	
 	private boolean isTerminalFeitian(CardTerminal terminal) {

@@ -2,6 +2,7 @@ package net.mohc.smartcard.trayapp;
 
 import java.awt.AWTException;
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.Image;
 import java.awt.Point;
 import java.awt.Rectangle;
@@ -12,12 +13,12 @@ import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
-
 import javax.swing.JComponent;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
+import javax.swing.MenuElement;
 import javax.swing.UIManager;
 
 import org.apache.log4j.Logger;
@@ -30,17 +31,17 @@ import net.mohc.smartcard.utils.ImageHelper;
 
 public class SmartCardApplication {
 	private Logger logger;
-	private SystemTray systemTray;
 	GraphicsToolkit graphicesToolkit;
 	private SmartCardController controller;
 	TrayIcon trayIcon;
+	boolean viewInitialised = false;
 	
 	public static void main(String[] args) {
 		boolean quietMode = args.length >= 1 && "-q".equals(args[0]);
 		if (System.getProperty("disable.error.popup", "false").equalsIgnoreCase("true")) {
 			quietMode = true;
 		}
-		System.out.println("disable.error.popup = " + System.getProperty("disable.error.popup"));
+		Logger.getLogger(SmartCardApplication.class).info("disable.error.popup = " + quietMode);
 		try {
 			new SmartCardApplication();
 		} catch (Exception e) {
@@ -61,7 +62,6 @@ public class SmartCardApplication {
 		registerAsListener();
 		controller.initialise();
 		logger.info("Smart Card Application started");
-		System.out.println("Smart Card Application started");
 	}
 	
 	private void initialiseTray () {
@@ -71,23 +71,13 @@ public class SmartCardApplication {
 		try {
 			UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
     } catch (Exception ex) {
+    	logger.warn("Could not set look and feel: " + ex.getMessage());
     }
-    systemTray = SystemTray.getSystemTray();
+		SystemTray systemTray = SystemTray.getSystemTray();
     final JPopupMenu trayPopupMenu = new JPopupMenu();
     ImageHelper imageHelper = new ImageHelper();
     Color menuHighlightColour = new Color(0x91C9F7);
-    MouseListener highlighter = new MouseAdapter() {
-			public void mouseExited(MouseEvent e) {
-				JMenuItem item = (JMenuItem)e.getSource();
-				item.setOpaque(false);
-				item.repaint();
-			}
-			public void mouseEntered(MouseEvent e) {
-				JMenuItem item = (JMenuItem)e.getSource();
-				item.setOpaque(true);
-				item.repaint();
-			}
-		};   
+    MouseListener highlighter = createMenuItemPainter();  
     
     JMenuItem tools = new JMenuItem("Tools", imageHelper.getIcon("Tools16"));
     tools.setBackground(menuHighlightColour);
@@ -95,9 +85,7 @@ public class SmartCardApplication {
     	public void actionPerformed(ActionEvent e) {
     		trayPopupMenu.setVisible(false);
     		popUpFrame("Smart Card View", new ToolsPanel());
-    		//JOptionPane.showMessageDialog(null, new ToolsPanel());         
     	}
-
     });  
     tools.addMouseListener(highlighter);
     trayPopupMenu.add(tools);
@@ -108,7 +96,6 @@ public class SmartCardApplication {
     	public void actionPerformed(ActionEvent e) {
     		trayPopupMenu.setVisible(false);
     		popUpFrame("About Smart Card Application", new AboutPanel());
-    		//JOptionPane.showMessageDialog(null, new AboutPanel());         
     	}
     });     
     about.addMouseListener(highlighter);
@@ -126,12 +113,24 @@ public class SmartCardApplication {
     });
     close.addMouseListener(highlighter);
     trayPopupMenu.add(close);
+    createTrayIcon(trayPopupMenu);
+    try{
+    	systemTray.add(trayIcon);
+    }catch(AWTException awtException){
+      throw new SmartCardApplicationException("Not able to add SmartCard to system tray");
+    }
+	}
 
-    trayIcon = new TrayIcon(controller.getStatus().getCurrentStatusImage(), "Prescribing Card");
+	private void createTrayIcon (final JPopupMenu trayPopupMenu) {
+		trayIcon = new TrayIcon(controller.getStatus().getCurrentStatusImage(), "Prescribing Card");
     trayIcon.setImageAutoSize(true);
     trayIcon.addMouseListener(new MouseAdapter() {
       @Override
       public void mouseClicked(MouseEvent e) {
+      	if (!viewInitialised) {
+      		initialiseView(trayPopupMenu);
+      	}
+      	
       	if (e.getButton() == MouseEvent.BUTTON1 && e.getClickCount() == 1) {
       		if (trayPopupMenu.isVisible()) {
       			trayPopupMenu.setVisible(false);
@@ -152,12 +151,35 @@ public class SmartCardApplication {
     		trayPopupMenu.setVisible(true);
 			}
     });
-    
-    try{
-    	systemTray.add(trayIcon);
-    }catch(AWTException awtException){
-      throw new SmartCardApplicationException("Not able to add SmartCard to system tray");
-    }
+	}
+	
+	protected void initialiseView(JPopupMenu trayPopupMenu) {
+		MenuElement[] elements = trayPopupMenu.getSubElements();
+		for (MenuElement menuElement : elements) {
+			Component component = menuElement.getComponent();
+			if (component instanceof JMenuItem) {
+				JMenuItem item = (JMenuItem)component;
+				item.setOpaque(false);
+				item.repaint();
+			}
+		}
+	}
+	
+	private MouseAdapter createMenuItemPainter () {
+		return new MouseAdapter() {
+    	@Override
+			public void mouseExited(MouseEvent e) {
+				JMenuItem item = (JMenuItem)e.getSource();
+				item.setOpaque(false);
+				item.repaint();
+			}
+    	@Override
+			public void mouseEntered(MouseEvent e) {
+				JMenuItem item = (JMenuItem)e.getSource();
+				item.setOpaque(true);
+				item.repaint();
+			}
+		}; 
 	}
 
 	private void popUpFrame(String title, JPanel contentPanel) {
@@ -197,11 +219,10 @@ public class SmartCardApplication {
 	}
 
 	protected void updateTray(ActionEvent e) {
+		logger.debug("State change fired: " + e.getActionCommand());
 		Image image = controller.getStatus().getCurrentStatusImage();
 		trayIcon.setImage(image);
 		String statusSummary = controller.getStatus().getStatusAsText();
 		trayIcon.setToolTip(statusSummary);
-	}
-
-	
+	}	
 }

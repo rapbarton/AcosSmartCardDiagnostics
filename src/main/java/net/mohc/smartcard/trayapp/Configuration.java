@@ -37,12 +37,25 @@ public class Configuration  implements SmartCardConstants {
 	}
 
 	private File findPathForDll(String cardType) {
-		String filename = is64bit0()?dllNames64bit.get(cardType):dllNames32bit.get(cardType);
-		if (null == filename) {
-			filename = is64bit0()?DEFAULT_DLL_FILENAME_64BIT:DEFAULT_DLL_FILENAME_32BIT;
+		String filename;
+		if (isLinux()) {
+			filename = "tbd";
+		} else {
+			filename = is64bit0()?dllNames64bit.get(cardType):dllNames32bit.get(cardType);
+			if (null == filename) {
+				filename = is64bit0()?DEFAULT_DLL_FILENAME_64BIT:DEFAULT_DLL_FILENAME_32BIT;
+			}
 		}
 		String dllPath = System.getProperty("location.dll", ".");
 		return new File(dllPath + separator + filename);		
+	}
+
+	private boolean isLinux() {
+		String systemOs = System.getProperty("os.name");
+	  if (systemOs != null) {
+	     return systemOs.contains("nux");
+	  }
+	  return false;
 	}
 
 	private boolean is64bit0() {
