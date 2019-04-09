@@ -18,6 +18,7 @@ import java.security.PublicKey;
 import java.security.Security;
 import java.security.Signature;
 import java.security.UnrecoverableKeyException;
+import java.security.cert.Certificate;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateExpiredException;
@@ -93,7 +94,7 @@ public class SmartCardKeyStore implements SmartCardConstants {
 			}
 			ks.load(null, null);
 			loaded = true;
-			loadPrivateKeyAndCertChainWithChoice();
+			loadPrivateKeyAndCertChainWithChoice(null);
 			status = "Card OK";
 			certificateCN = getCertificateCommonName();
 		} catch (KeyStoreException kse) {
@@ -115,7 +116,9 @@ public class SmartCardKeyStore implements SmartCardConstants {
 	}
 	
 	public SmartCardKeyStore(Card card) {
+		logger = Logger.getLogger(this.getClass());
 		if (card instanceof P12Card) {
+			session = new Session();
 			File p12File = ((P12Card)card).getP12File();
 			FileInputStream p12Stream = null;
 			try {
@@ -129,32 +132,44 @@ public class SmartCardKeyStore implements SmartCardConstants {
 			} catch (KeyStoreException e) {
 				reportFatalProblemAndGiveUp("KeyStoreException: " + e.getMessage());
 			}			 
-			char[] p12Password = PinDialog.showPinDialog(null);
+			char[] p12Password = fetchPasscode();
 			try {
 				keystore.load(p12Stream, p12Password );
-			} catch (NoSuchAlgorithmException | CertificateException | IOException e) {
+				ks = keystore;
+				loaded = true;
+				loadPrivateKeyAndCertChainWithChoice(p12Password);
+				status = "Card OK";
+				certificateCN = getCertificateCommonName();
+				return;
+			} catch (CertificateException | IOException e) {
 				reportFatalProblemAndGiveUp("Exception loading keystore: " + e.getMessage());
-			}
-			Enumeration<String> aliases;
-			try {
-				aliases = keystore.aliases();
-				String keyAlias = "";
-				while (aliases.hasMoreElements()) {
-			    keyAlias = (String) aliases.nextElement();
-				}
-				PrivateKey key = (PrivateKey)keystore.getKey(keyAlias, p12Password);
-				logger.info("Got a key!");
-				
-				
 			} catch (KeyStoreException e) {
 				reportFatalProblemAndGiveUp("KeyStoreException: " + e.getMessage());
 			} catch (UnrecoverableKeyException e) {
 				reportFatalProblemAndGiveUp("UnrecoverableKeyException: " + e.getMessage());
 			} catch (NoSuchAlgorithmException e) {
 				reportFatalProblemAndGiveUp("NoSuchAlgorithmException: " + e.getMessage());
+			} catch (GeneralSecurityException e) {
+				reportFatalProblemAndGiveUp("GeneralSecurityException: " + e.getMessage());
 			}
 		}
 		reportFatalProblemAndGiveUp("Not a P12Card");
+	}
+
+	private char[] fetchPasscode() {
+		char[] pin;
+		if (session.isValid()) {
+			pin = session.getPin();
+		} else {
+			pin = PinDialog.showPinDialog(null);
+			startSession(pin);
+		}
+		if (pin != null && pin.length >= 4) {
+			return pin;
+		} else {
+			session.setValid(false);
+		}
+		return null;
 	}
 
 	public void loadPrivateKeyAndCertChain() throws GeneralSecurityException {
@@ -181,7 +196,7 @@ public class SmartCardKeyStore implements SmartCardConstants {
 		}
 	}
 	
-	public void loadPrivateKeyAndCertChainWithChoice() throws GeneralSecurityException {
+	public void loadPrivateKeyAndCertChainWithChoice(char[] password) throws GeneralSecurityException {
 		Enumeration<?> aliasesEnum = ks.aliases();
 		ArrayList<String> aliases = new ArrayList<>();
 		while (aliasesEnum.hasMoreElements()) {
@@ -199,8 +214,16 @@ public class SmartCardKeyStore implements SmartCardConstants {
 		}
 		currentPublicKey = ks.getCertificate(alias).getPublicKey();
 		currentX509Certificate = (X509Certificate) ks.getCertificate(alias);
-		currentPrivateKey = (PrivateKey) ks.getKey(alias, null);
-		currentX509CertificateChain = (X509Certificate[]) ks.getCertificateChain(alias);
+		currentPrivateKey = (PrivateKey) ks.getKey(alias, password);
+		//currentX509CertificateChain = (X509Certificate[]) ks.getCertificateChain(alias);
+		Certificate[] certs = ks.getCertificateChain(alias);
+		currentX509CertificateChain = null;
+		if (null != certs && certs.length > 0) {
+			if (certs[0] instanceof X509Certificate) {
+				X509Certificate firstCertificate = (X509Certificate) certs[0];
+				currentX509CertificateChain = new X509Certificate[] {firstCertificate};
+			}
+		}		
 	}
 	
 	private String chooseAlias(ArrayList<String> aliases) {
