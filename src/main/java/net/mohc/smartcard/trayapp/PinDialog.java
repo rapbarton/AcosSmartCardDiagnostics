@@ -1,6 +1,5 @@
 package net.mohc.smartcard.trayapp;
 
-import java.awt.Component;
 import java.awt.Image;
 import java.awt.event.ComponentEvent;
 import java.awt.event.ComponentListener;
@@ -20,8 +19,9 @@ import net.mohc.smartcard.utils.ImageHelper;
 import net.mohc.smartcard.utils.RiverLayout;
 
 public class PinDialog {
+	private PinDialog () {}
 
-	public static char[] showPinDialog(Component parent) {
+	public static char[] showPinDialog() {
 		ImageHelper imageHelper = new ImageHelper();
 		String okOption = "Unlock";
 		Object[] options = { okOption };
@@ -57,8 +57,8 @@ public class PinDialog {
 					}
 				});
 			}
-			public void ancestorMoved(AncestorEvent event) {}
-			public void ancestorRemoved(AncestorEvent event) {}
+			public void ancestorMoved(AncestorEvent event) {/*Not interested*/}
+			public void ancestorRemoved(AncestorEvent event) {/*Not interested*/}
 		});
 
 		tp.addComponentListener(new ComponentListener() {
@@ -75,11 +75,11 @@ public class PinDialog {
 				dialogue.requestFocus();
 			}
 			@Override
-			public void componentResized(ComponentEvent e) {}
+			public void componentResized(ComponentEvent e) {/*Not interested*/}
 			@Override
-			public void componentMoved(ComponentEvent e) {}
+			public void componentMoved(ComponentEvent e) {/*Not interested*/}
 			@Override
-			public void componentHidden(ComponentEvent e) {}
+			public void componentHidden(ComponentEvent e) {/*Not interested*/}
 		});
 		
 		dialogue.setVisible(true);

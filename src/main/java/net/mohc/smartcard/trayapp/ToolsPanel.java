@@ -2,8 +2,11 @@ package net.mohc.smartcard.trayapp;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.logging.Logger;
 
+import javax.smartcardio.CardTerminal;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -17,9 +20,10 @@ public class ToolsPanel extends JPanel {
 	private static final long serialVersionUID = 2803699942090873875L;
 
 	private JButton connectButton;
+	private JButton chooseReaderButton;
 	private JButton signTestStringButton;
 	private JTextField terminalStatusField;
-	private SmartCardController smartCardController;
+	private transient SmartCardController smartCardController;
 	private JTextField cardPresentStatusField;
 	private JTextField cardSessionStatusField;
 	private JTextField certificateStatusField;
@@ -35,6 +39,7 @@ public class ToolsPanel extends JPanel {
 
 	private void initialise() {
 		initControllers();
+		initButtons();
 		initLayout();
 		initActions();
 		smartCardController.getStatus().addStatusChangeListener(new StatusChangeListener() {
@@ -45,6 +50,13 @@ public class ToolsPanel extends JPanel {
 		doRefreshAction();
 	}
 
+	private void initButtons() {
+		connectButton = new JButton("Open keystore");
+		signTestStringButton = new JButton("Test signing using card");
+		experimentalButton = new JButton("Experimental");
+		chooseReaderButton = new JButton("Choose reader");
+	}
+
 	private void initControllers() {
 		smartCardController = SmartCardController.getInstance();
 	}
@@ -53,23 +65,22 @@ public class ToolsPanel extends JPanel {
 		add("vtop hfill", new JLabel("<html><h1>Prescribing Card Diagnostics</h1>"));
 		cardPicture = new JLabel("");
 		cardPicture.setAlignmentY(SwingConstants.RIGHT);
-		add("br tab", cardPicture);
+		add("br", chooseReaderButton);
+		add("tab", cardPicture);
 		terminalStatusField = createJTextField("Terminal Status");
 		cardPresentStatusField = createJTextField("Card in slot");
 		cardSessionStatusField = createJTextField("Session");
 		certificateStatusField = createJTextField("Certificate/Status");
-		//add("br", refreshButton = new JButton("Refresh"));
-		add("br", connectButton = new JButton("Open keystore"));
-		add("tab", signTestStringButton = new JButton("Test signing using card"));
+		add("br", connectButton);
+		add("tab", signTestStringButton);
 		signatureField = createJTextField("Resultant Signature");
-		add("br", experimentalButton = new JButton("Experimental"));
-		
+		add("br", experimentalButton);
 	}
 
 	private JTextField createJTextField(String nameOfField) {
-		JTextField aNewField;
+		JTextField aNewField = new JTextField("",50);
 		add("br", new JLabel(nameOfField));
-		add("tab", aNewField = new JTextField("",50));
+		add("tab", aNewField);
 		aNewField.setEditable(false);
 		return aNewField;
 	}
@@ -92,10 +103,25 @@ public class ToolsPanel extends JPanel {
 			}
 		});
 		
+		chooseReaderButton.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent arg0) {
+				doChooseReaderAction();
+			}
+		});
+		
+	}
+
+	protected void doChooseReaderAction() {
+		List<CardTerminal> allTerminals = smartCardController.findAvailableTerminals();
+//		List<String> allTerminalNames = new ArrayList<>();
+//		for (CardTerminal cardTerminal : allTerminals) {
+//			allTerminalNames.add(cardTerminal.getName());
+//		}
+		String result = CardReaderChoiceDialog.showChoices(allTerminals, smartCardController.getDefaultCardTerminalName());
+		smartCardController.setDefaultCardTerminalName(result);
 	}
 
 	protected void doRefreshAction() {
-		//smartCardController.connectToCardAndFindKeys();
 		Logger.getLogger("REFRESH");
 		updateFieldsFromSmartCardController();
 	}

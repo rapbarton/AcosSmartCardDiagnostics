@@ -3,11 +3,9 @@ package net.mohc.smartcard.trayapp;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
-import java.security.KeyStore.CallbackHandlerProtection;
 import java.security.KeyStore.ProtectionParameter;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
@@ -98,7 +96,7 @@ public class SmartCardKeyStore implements SmartCardConstants {
 			status = "Card OK";
 			certificateCN = getCertificateCommonName();
 		} catch (KeyStoreException kse) {
-			reportFatalProblemAndGiveUp("KeyStoreException: " + kse.getMessage());
+			reportFatalProblemAndGiveUp("PKCS11KeyStoreException: " + kse.getMessage());
 		} catch (NoSuchAlgorithmException e) {
 			reportFatalProblemAndGiveUp("NoSuchAlgorithmException: " + e.getMessage());
 		} catch (CertificateException e) {
@@ -120,20 +118,9 @@ public class SmartCardKeyStore implements SmartCardConstants {
 		if (card instanceof P12Card) {
 			session = new Session();
 			File p12File = ((P12Card)card).getP12File();
-			FileInputStream p12Stream = null;
-			try {
-				p12Stream = new FileInputStream(p12File);
-			} catch (FileNotFoundException e) {
-				reportFatalProblemAndGiveUp("Exception loading keystore: " + e.getMessage());
-			}
-			KeyStore keystore = null;
-			try {
-				keystore = KeyStore.getInstance("PKCS12");
-			} catch (KeyStoreException e) {
-				reportFatalProblemAndGiveUp("KeyStoreException: " + e.getMessage());
-			}			 
-			char[] p12Password = fetchPasscode();
-			try {
+			try (FileInputStream p12Stream = new FileInputStream(p12File)) {
+				char[] p12Password = fetchPasscode();
+				KeyStore keystore = KeyStore.getInstance("PKCS12");
 				keystore.load(p12Stream, p12Password );
 				ks = keystore;
 				loaded = true;
@@ -156,12 +143,12 @@ public class SmartCardKeyStore implements SmartCardConstants {
 		reportFatalProblemAndGiveUp("Not a P12Card");
 	}
 
-	private char[] fetchPasscode() {
+	private char[] fetchPasscode() throws GeneralSecurityException {
 		char[] pin;
 		if (session.isValid()) {
 			pin = session.getPin();
 		} else {
-			pin = PinDialog.showPinDialog(null);
+			pin = PinDialog.showPinDialog();
 			startSession(pin);
 		}
 		if (pin != null && pin.length >= 4) {
@@ -169,7 +156,7 @@ public class SmartCardKeyStore implements SmartCardConstants {
 		} else {
 			session.setValid(false);
 		}
-		return null;
+		throw new GeneralSecurityException("No valid pin entered");
 	}
 
 	public void loadPrivateKeyAndCertChain() throws GeneralSecurityException {
@@ -215,14 +202,11 @@ public class SmartCardKeyStore implements SmartCardConstants {
 		currentPublicKey = ks.getCertificate(alias).getPublicKey();
 		currentX509Certificate = (X509Certificate) ks.getCertificate(alias);
 		currentPrivateKey = (PrivateKey) ks.getKey(alias, password);
-		//currentX509CertificateChain = (X509Certificate[]) ks.getCertificateChain(alias);
 		Certificate[] certs = ks.getCertificateChain(alias);
 		currentX509CertificateChain = null;
-		if (null != certs && certs.length > 0) {
-			if (certs[0] instanceof X509Certificate) {
-				X509Certificate firstCertificate = (X509Certificate) certs[0];
-				currentX509CertificateChain = new X509Certificate[] {firstCertificate};
-			}
+		if (null != certs && certs.length > 0 && (certs[0] instanceof X509Certificate)) {
+			X509Certificate firstCertificate = (X509Certificate) certs[0];
+			currentX509CertificateChain = new X509Certificate[] {firstCertificate};
 		}		
 	}
 	
@@ -250,11 +234,7 @@ public class SmartCardKeyStore implements SmartCardConstants {
 				d = addDays(d, daysTime);
 			}
 			currentX509Certificate.checkValidity(d);
-		} catch (CertificateExpiredException e) {
-			return false;
-		} catch (CertificateNotYetValidException e) {
-			return false;
-		} catch (NullPointerException e) {
+		} catch (CertificateExpiredException | CertificateNotYetValidException | NullPointerException e) {
 			return false;
 		}
 		return true;
@@ -271,8 +251,7 @@ public class SmartCardKeyStore implements SmartCardConstants {
 		if (null!=currentX509Certificate) {
 			return currentX509Certificate.getNotAfter();
 		} else {
-			Date aDateThatWontCauseAnExpiryError = addDays(new Date(), 1000);
-			return aDateThatWontCauseAnExpiryError;
+			return addDays(new Date(), 1000); //A date that will not cause errors
 		}
 	}
 	
@@ -317,8 +296,7 @@ public class SmartCardKeyStore implements SmartCardConstants {
 		logger.info("Signature object:" + signatureAlgorithm.toString());
 		signatureAlgorithm.update(documentToSign);
 		byte[] digitalSignature = signatureAlgorithm.sign();
-		String sSignature = Base64.encodeBytes(digitalSignature) +"";
-		return sSignature;
+		return Base64.encodeBytes(digitalSignature);
 	}
 	
 	public String getCertificateCommonName () {
@@ -328,9 +306,9 @@ public class SmartCardKeyStore implements SmartCardConstants {
 				String dn = tbsCert.toString();
 				return getValByAttributeTypeFromIssuerDN(dn,"CN=");
 			} catch (CertificateEncodingException e) {
-				e.printStackTrace();
+				logger.warn("Certificate encoding error: " + e.getMessage());
 			} catch (CertificateParsingException e) {
-				e.printStackTrace();
+				logger.warn("Certificate parsing error: " + e.getMessage());
 			}
 		}
 		return "";
@@ -356,30 +334,32 @@ public class SmartCardKeyStore implements SmartCardConstants {
   }
 
 	private ProtectionParameter createPinNumberDialog() {
-		CallbackHandlerProtection callbackHandlerProtection = new KeyStore.CallbackHandlerProtection(new CallbackHandler() {
+		return new KeyStore.CallbackHandlerProtection(new CallbackHandler() {
 			public void handle(Callback[] callbacks) throws IOException, UnsupportedCallbackException {
 				for (Callback callback : callbacks) {
-					if (callback instanceof PasswordCallback) {
-						PasswordCallback pwdCallback = (PasswordCallback) callback;
-						char[] pin;
-						if (session.isValid()) {
-							pin = session.getPin();
-						} else {
-							pin = PinDialog.showPinDialog(null);
-							startSession(pin);
-						}
-						if (pin != null && pin.length >= 4) {
-							pwdCallback.setPassword(pin);
-						} else {
-							pwdCallback.clearPassword();
-							session.setValid(false);
-							throw new IOException("Cancelled");
-						}
+					doPinDialogueIfNotInSession(callback);
+				}
+			}
+			private void doPinDialogueIfNotInSession(Callback callback) throws IOException {
+				if (callback instanceof PasswordCallback) {
+					PasswordCallback pwdCallback = (PasswordCallback) callback;
+					char[] pin;
+					if (session.isValid()) {
+						pin = session.getPin();
+					} else {
+						pin = PinDialog.showPinDialog();
+						startSession(pin);
+					}
+					if (pin != null && pin.length >= 4) {
+						pwdCallback.setPassword(pin);
+					} else {
+						pwdCallback.clearPassword();
+						session.setValid(false);
+						throw new IOException("Cancelled");
 					}
 				}
 			}
-		});
-		return callbackHandlerProtection;
+		});		
 	}
 
 	protected boolean startSession(char[] pin) {
@@ -475,7 +455,7 @@ public class SmartCardKeyStore implements SmartCardConstants {
 		if (isKeystoreLoaded() && hasSession() && null!=currentX509CertificateChain) {
 			return currentX509CertificateChain;
 		} else {
-			return null;
+			return new X509Certificate[0];
 		}
 	}
 }

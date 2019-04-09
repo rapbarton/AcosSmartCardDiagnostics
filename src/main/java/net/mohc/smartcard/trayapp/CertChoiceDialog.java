@@ -3,7 +3,7 @@ package net.mohc.smartcard.trayapp;
 import java.awt.Image;
 import java.awt.event.ComponentEvent;
 import java.awt.event.ComponentListener;
-import java.util.ArrayList;
+import java.util.List;
 
 import javax.swing.Icon;
 import javax.swing.JComboBox;
@@ -20,8 +20,9 @@ import net.mohc.smartcard.utils.ImageHelper;
 import net.mohc.smartcard.utils.RiverLayout;
 
 public class CertChoiceDialog {
+	private CertChoiceDialog () {}
 
-	public static String showChoices(ArrayList<String> aliases) {
+	public static String showChoices(List<String> aliases) {
 		ImageHelper imageHelper = new ImageHelper();
 		String okOption = "Select";
 		Object[] options = { okOption };
@@ -48,8 +49,8 @@ public class CertChoiceDialog {
 				dialogue.toFront();
 				choiceField.requestFocusInWindow();
 			}
-			public void ancestorMoved(AncestorEvent event) {}
-			public void ancestorRemoved(AncestorEvent event) {}
+			public void ancestorMoved(AncestorEvent event) {/*Not interested*/}
+			public void ancestorRemoved(AncestorEvent event) {/*Not interested*/}
 		});
 
 		tp.addComponentListener(new ComponentListener() {
@@ -66,11 +67,11 @@ public class CertChoiceDialog {
 				dialogue.requestFocus();
 			}
 			@Override
-			public void componentResized(ComponentEvent e) {}
+			public void componentResized(ComponentEvent e) {/*Not interested*/}
 			@Override
-			public void componentMoved(ComponentEvent e) {}
+			public void componentMoved(ComponentEvent e) {/*Not interested*/}
 			@Override
-			public void componentHidden(ComponentEvent e) {}
+			public void componentHidden(ComponentEvent e) {/*Not interested*/}
 		});
 		
 		dialogue.setVisible(true);

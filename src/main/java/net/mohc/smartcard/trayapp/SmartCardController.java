@@ -48,6 +48,7 @@ public class SmartCardController implements SmartCardConstants {
 	private Status status;
 	private Logger logger;
 	private ImageHelper imageHelper;
+	private String defaultCardTerminalName = "";
 	
 	private SmartCardController() {
 		logger = Logger.getLogger(SmartCardController.class);
@@ -116,7 +117,7 @@ public class SmartCardController implements SmartCardConstants {
 	
 	private void monitorTerminals() {
 		CardTerminal proposed = findBestTerminalOrNull();
-		if (!status.getCurrentTerminal().equals(TERMINAL_TYPE_ACOS) && proposed != null) {
+		if (proposed != null) {
 			changeTerminal(proposed);
 		} else if (!status.getCurrentTerminal().equals(TERMINAL_TYPE_NONE) && !status.getCurrentTerminal().equals(TERMINAL_TYPE_DUMMY) && proposed == null) {
 			reset();
@@ -198,7 +199,7 @@ public class SmartCardController implements SmartCardConstants {
 		if (selectedCardTerminal != null) {
 			List<CardTerminal> terminals;
 			try {
-				terminals = getTerminalList();
+				terminals = getTerminalList(false);
 				for (CardTerminal cardTerminal : terminals) {
 					if (selectedCardTerminal.equals(cardTerminal)) {
 						return true;
@@ -212,7 +213,11 @@ public class SmartCardController implements SmartCardConstants {
 		return true;//Kinda expecting no terminal
 	}
 	
-	private List<CardTerminal> getTerminalList() {
+	public List<CardTerminal> findAvailableTerminals() {
+		return getTerminalList(false);
+	}
+	
+	private List<CardTerminal> getTerminalList(boolean throwExceptionIfServiceStopped) {
 		ArrayList<CardTerminal> terminals = new ArrayList<>();
 		try {
 			List<CardTerminal> factoryList = factory.terminals().list();
@@ -224,7 +229,11 @@ public class SmartCardController implements SmartCardConstants {
 			if (null != cause) {
 				String reason = cause.getMessage();
 				if (reason.equals("SCARD_E_SERVICE_STOPPED")) {
-					throw new SmartCardApplicationException("Known bug in library causes fatal problem when reader service stops where no card readers are plugged in");
+					if (throwExceptionIfServiceStopped) {
+						throw new SmartCardApplicationException("Known bug in library causes fatal problem when reader service stops where no card readers are plugged in");
+					} else {
+						logger.debug("Can't see any card readers because the service has stopped");
+					}
 				} else if (!reason.equals("SCARD_E_NO_READERS_AVAILABLE")) {
 					logger.debug("Can't see any card readers because " + reason);
 				}
@@ -238,10 +247,20 @@ public class SmartCardController implements SmartCardConstants {
 	}
 	
 	private CardTerminal findBestTerminalOrNull () {
-		List<CardTerminal> terminals = getTerminalList();
+		List<CardTerminal> terminals = getTerminalList(true);
 		if (terminals.isEmpty()) {
 			return null;
 		}
+		
+		//Is there a default configured?
+		if (!defaultCardTerminalName.isEmpty()) {
+			for (CardTerminal cardTerminal : terminals) {
+				if (defaultCardTerminalName.equals(cardTerminal.getName())) {
+					return cardTerminal;
+				}
+			}
+		}
+		
 		//First choice is ACOS for Windows
 		if (Configuration.getInstance().isWindows()) {
 			for (CardTerminal cardTerminal : terminals) {
@@ -250,12 +269,14 @@ public class SmartCardController implements SmartCardConstants {
 				}
 			}
 		}
+		
 		//Second choice is dummy
 		for (CardTerminal cardTerminal : terminals) {
 			if (isTerminalDummy(cardTerminal)) {
 				return cardTerminal;
 			}
 		}
+		
 		//Otherwise just pick first in list
 		return terminals.get(0);
 	}
@@ -283,6 +304,7 @@ public class SmartCardController implements SmartCardConstants {
 			selectAppropriateDll();
 			status.setCurrentStatus(Status.NO_TERMINAL);
 		} else if (null == selectedCardTerminal || !selectedCardTerminal.getName().equals(terminal.getName())) {
+			status.setCurrentStatus(Status.NO_TERMINAL);
 			selectedCardTerminal = terminal;
 			if (isTerminalACOS(terminal)) {
 				status.setCurrentTerminal(TERMINAL_TYPE_ACOS);
@@ -510,27 +532,35 @@ public class SmartCardController implements SmartCardConstants {
 		this.status = status;
 	}
 
-	public Icon getIconForSelectedTerminal() {
+	public Icon getIconForTerminal(CardTerminal terminal) {
 		String imageName = "genericReader_70";
-		if (isTerminalACOS(selectedCardTerminal)) {
+		if (isTerminalACOS(terminal)) {
 			imageName = "ACR38_70";
-		} else if (isTerminalFeitian(selectedCardTerminal)) {
+		} else if (isTerminalFeitian(terminal)) {
 			imageName = "FT_R301_70";
-		} else if (isTerminalDummy(selectedCardTerminal)) {
-			imageName = "Certificate";
+		} else if (isTerminalDummy(terminal)) {
+			imageName = "Certificate_70";
 		}
 		return imageHelper.getIcon(imageName);
 	}
 
-	public String getNameOfSelectedTerminal() {
-		if (selectedCardTerminal == null) return "";
-		String name = selectedCardTerminal.getName();
-		if (isTerminalACOS(selectedCardTerminal)) {
+	public String getNameOfTerminal(CardTerminal terminal) {
+		if (terminal == null) return "";
+		String name = terminal.getName();
+		if (isTerminalACOS(terminal)) {
 			name = "ACOS ACR38";
-		} else if (isTerminalFeitian(selectedCardTerminal)) {
+		} else if (isTerminalFeitian(terminal)) {
 			name = "Feitian R301";
 		}
 		return name;
+	}
+
+	public Icon getIconForSelectedTerminal() {
+		return getIconForTerminal(selectedCardTerminal);
+	}
+
+	public String getNameOfSelectedTerminal() {
+		return getNameOfTerminal(selectedCardTerminal);
 	}
 
 	public boolean isCardPresent() {
@@ -558,14 +588,14 @@ public class SmartCardController implements SmartCardConstants {
 		if (isKeyStoreOpen()) {
 			return smartCardKeyStore.getCertificateDetail();
 		} else {
-			return new HashMap<String,String>();
+			return new HashMap<>();
 		}
 	}
 
 	public String getCertificateEncoded() {
 		if (isKeyStoreOpen()) {
 			X509Certificate[] chain = smartCardKeyStore.getCertificateChain();
-			if (null == chain) return "";
+			if (chain.length == 0) return "";
 			String encodedCertificate;
 			try {
 				encodedCertificate = encodeX509CertChainToBase64(chain);
@@ -606,6 +636,11 @@ public class SmartCardController implements SmartCardConstants {
 		return P12CardTerminalFactory.getP12CardTerminal();
 	}
 	
-	
+	public void setDefaultCardTerminalName(String name) {
+		defaultCardTerminalName = name;
+	}
 
+	public String getDefaultCardTerminalName() {
+		return defaultCardTerminalName;
+	}
 }
