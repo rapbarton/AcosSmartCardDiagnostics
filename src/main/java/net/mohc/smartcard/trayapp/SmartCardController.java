@@ -84,7 +84,7 @@ public class SmartCardController implements SmartCardConstants {
 	
 	public void doActionWhenStatusChanges() {
 		logger.info("Card state change");
-	};
+	}
 
 	private void controlActions() {
 		try {
@@ -150,10 +150,6 @@ public class SmartCardController implements SmartCardConstants {
 				cardPresent = false;
 				cardPresentStatus = SMART_CARD_ERROR;
 			}
-//		} else if (status.getCurrentStatus() == DUMMY_TERMINAL) {
-//			cardPresent = true;
-//			cardPresentStatus = SMART_CARD_INSERTED;
-//			cardConnectedStatus = "Connected";
 		}
 	}
 	

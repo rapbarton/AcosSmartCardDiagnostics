@@ -3,7 +3,6 @@ package net.mohc.smartcard.trayapp;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.util.Date;
-
 import javax.smartcardio.Card;
 import javax.smartcardio.CardException;
 import javax.smartcardio.CardNotPresentException;
@@ -21,8 +20,11 @@ public class P12CardTerminal extends CardTerminal {
 	public Card connect(String protocol) throws CardException {
 		File[] files = getP12s();
 		if (files.length == 0) throw new CardNotPresentException("No card in " + location.getAbsolutePath());
-		P12Card card = new P12Card(files[0]);
-		return card;	
+		if (files.length > 1) {
+			File selectedFile = DummyCardChoiceDialog.showChoices(files);
+			return new P12Card(selectedFile);
+		}
+		return new P12Card(files[0]);
 	}
 
 	@Override
@@ -37,34 +39,36 @@ public class P12CardTerminal extends CardTerminal {
 
 	@Override
 	public boolean waitForCardAbsent(long timeout) throws CardException {
-		long expireTime = timeNow() + timeout;
-		boolean isAbsent = !areThereP12s();
-		while(timeNow() < expireTime && !isAbsent) {
-			try {
-				wait(250); //Check every 1/4s so we aren't hammering the file system
-			} catch (InterruptedException e) {
-				Thread.currentThread().interrupt();
-			  throw new RuntimeException(e);
+		synchronized (location) {
+			long expireTime = timeNow() + timeout;
+			boolean isAbsent = !areThereP12s();
+			while(timeNow() < expireTime && !isAbsent) {
+				try {
+					wait(250); //Check every 1/4s so we aren't hammering the file system
+				} catch (InterruptedException e) {
+					Thread.currentThread().interrupt();
+				}
+				isAbsent = !areThereP12s();
 			}
-			isAbsent = !areThereP12s();
+			return isAbsent;
 		}
-		return isAbsent;
 	}
 
 	@Override
 	public boolean waitForCardPresent(long timeout) throws CardException {
-		long expireTime = timeNow() + timeout;
-		boolean isPresent = areThereP12s();
-		while(timeNow() < expireTime && !isPresent) {
-			try {
-				wait(250); //Check every 1/4s so we aren't hammering the file system
-			} catch (InterruptedException e) {
-				Thread.currentThread().interrupt();
-			  throw new RuntimeException(e);
+		synchronized (location) {
+			long expireTime = timeNow() + timeout;
+			boolean isPresent = areThereP12s();
+			while(timeNow() < expireTime && !isPresent) {
+				try {
+					wait(250); //Check every 1/4s so we aren't hammering the file system
+				} catch (InterruptedException e) {
+					Thread.currentThread().interrupt();
+				}
+				isPresent = areThereP12s();
 			}
-			isPresent = areThereP12s();
+			return isPresent;
 		}
-		return isPresent;
 	}
 
 	private long timeNow() {

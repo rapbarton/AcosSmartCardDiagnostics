@@ -386,8 +386,10 @@ public class SmartCardKeyStore implements SmartCardConstants {
 		} catch (ProviderException e) {
 			logger.warn("Didn't log out of keystore cleanly - card removed?");
 		}
-		pkcs11Provider.clear();
-		Security.removeProvider(pkcs11Provider.getName());
+		if (null != pkcs11Provider) {
+			pkcs11Provider.clear();
+			Security.removeProvider(pkcs11Provider.getName());
+		}
 		session.setValid(false);
 		session.setSessionId("");
 		ks = null;

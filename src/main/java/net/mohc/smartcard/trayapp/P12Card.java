@@ -8,6 +8,7 @@ import javax.smartcardio.CardChannel;
 import javax.smartcardio.CardException;
 
 public class P12Card extends Card {
+	private static final String INVOCATION_WAS_UNEXPECTED = "Invocation was unexpected";
 	File p12File = null;
 
 	public P12Card(File file) throws CardException {
@@ -22,24 +23,27 @@ public class P12Card extends Card {
 
 	@Override
 	public void beginExclusive() throws CardException {
+		throw new UnsupportedOperationException(INVOCATION_WAS_UNEXPECTED);
 	}
 
 	@Override
 	public void disconnect(boolean arg0) throws CardException {
+		//Nothing to do
 	}
 
 	@Override
 	public void endExclusive() throws CardException {
+		throw new UnsupportedOperationException(INVOCATION_WAS_UNEXPECTED);
 	}
 
 	@Override
 	public ATR getATR() {
-		return null;
+		throw new UnsupportedOperationException(INVOCATION_WAS_UNEXPECTED);
 	}
 
 	@Override
 	public CardChannel getBasicChannel() {
-		return null;
+		throw new UnsupportedOperationException(INVOCATION_WAS_UNEXPECTED);
 	}
 
 	@Override
@@ -49,14 +53,12 @@ public class P12Card extends Card {
 
 	@Override
 	public CardChannel openLogicalChannel() throws CardException {
-		return null;
+		throw new UnsupportedOperationException(INVOCATION_WAS_UNEXPECTED);
 	}
 
 	@Override
-	public byte[] transmitControlCommand(int arg0, byte[] arg1)
-			throws CardException {
-		// TODO Auto-generated method stub
-		return null;
+	public byte[] transmitControlCommand(int arg0, byte[] arg1)	throws CardException {
+		throw new UnsupportedOperationException(INVOCATION_WAS_UNEXPECTED);
 	}
 	
 	@Override
