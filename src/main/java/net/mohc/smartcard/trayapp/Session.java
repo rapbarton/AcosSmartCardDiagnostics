@@ -23,7 +23,4 @@ public class Session {
 	public void setSessionId(String sessionId) {
 		this.sessionId = sessionId;
 	}
-	
-	
-	
 }

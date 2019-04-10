@@ -41,6 +41,7 @@ import javax.smartcardio.Card;
 
 import org.apache.log4j.Logger;
 
+import net.mohc.smartcard.trayapp.p12.P12Card;
 import net.mohc.smartcard.utils.Base64;
 import sun.security.pkcs11.SunPKCS11;
 import sun.security.x509.X509CertInfo;
@@ -63,6 +64,10 @@ public class SmartCardKeyStore implements SmartCardConstants {
 	private Session session;
 	private Logger logger;
 
+	/**
+	 * Construction using the filename for a dll. Intended for use with real Smart Cards
+	 * @param pkcs11LibraryFile
+	 */
 	public SmartCardKeyStore(String pkcs11LibraryFile) {
 		logger = Logger.getLogger(this.getClass());
 		session = new Session();
@@ -113,34 +118,38 @@ public class SmartCardKeyStore implements SmartCardConstants {
 		}
 	}
 	
-	public SmartCardKeyStore(Card card) {
+	/**
+	 * Construction using a p12 file - intended for use with dummy card system - gui dialogues for password and choices
+	 * @param card
+	 */
+	public SmartCardKeyStore(File p12File, char[] optionalPassword) {
 		logger = Logger.getLogger(this.getClass());
-		if (card instanceof P12Card) {
-			session = new Session();
-			File p12File = ((P12Card)card).getP12File();
-			try (FileInputStream p12Stream = new FileInputStream(p12File)) {
-				char[] p12Password = fetchPasscode();
-				KeyStore keystore = KeyStore.getInstance("PKCS12");
-				keystore.load(p12Stream, p12Password );
-				ks = keystore;
-				loaded = true;
-				loadPrivateKeyAndCertChainWithChoice(p12Password);
-				status = "Card OK";
-				certificateCN = getCertificateCommonName();
-				return;
-			} catch (CertificateException | IOException e) {
-				reportFatalProblemAndGiveUp("Exception loading keystore: " + e.getMessage());
-			} catch (KeyStoreException e) {
-				reportFatalProblemAndGiveUp("KeyStoreException: " + e.getMessage());
-			} catch (UnrecoverableKeyException e) {
-				reportFatalProblemAndGiveUp("UnrecoverableKeyException: " + e.getMessage());
-			} catch (NoSuchAlgorithmException e) {
-				reportFatalProblemAndGiveUp("NoSuchAlgorithmException: " + e.getMessage());
-			} catch (GeneralSecurityException e) {
-				reportFatalProblemAndGiveUp("GeneralSecurityException: " + e.getMessage());
-			}
+		session = new Session();
+		try (FileInputStream p12Stream = new FileInputStream(p12File)) {
+			char[] p12Password = isEmpty(optionalPassword)?fetchPasscode():optionalPassword;
+			KeyStore keystore = KeyStore.getInstance("PKCS12");
+			keystore.load(p12Stream, p12Password );
+			ks = keystore;
+			loaded = true;
+			loadPrivateKeyAndCertChainWithChoice(p12Password);
+			status = "Card OK";
+			certificateCN = getCertificateCommonName();
+			return;
+		} catch (CertificateException | IOException e) {
+			reportFatalProblemAndGiveUp("Exception loading keystore: " + e.getMessage());
+		} catch (KeyStoreException e) {
+			reportFatalProblemAndGiveUp("KeyStoreException: " + e.getMessage());
+		} catch (UnrecoverableKeyException e) {
+			reportFatalProblemAndGiveUp("UnrecoverableKeyException: " + e.getMessage());
+		} catch (NoSuchAlgorithmException e) {
+			reportFatalProblemAndGiveUp("NoSuchAlgorithmException: " + e.getMessage());
+		} catch (GeneralSecurityException e) {
+			reportFatalProblemAndGiveUp("GeneralSecurityException: " + e.getMessage());
 		}
-		reportFatalProblemAndGiveUp("Not a P12Card");
+	}
+
+	private boolean isEmpty(char[] array) {
+		return (null == array) || array.length == 0;
 	}
 
 	private char[] fetchPasscode() throws GeneralSecurityException {

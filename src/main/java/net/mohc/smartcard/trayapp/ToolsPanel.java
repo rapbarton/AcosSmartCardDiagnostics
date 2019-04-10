@@ -2,22 +2,20 @@ package net.mohc.smartcard.trayapp;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
 
 import javax.smartcardio.CardTerminal;
 import javax.swing.JButton;
 import javax.swing.JLabel;
-import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.SwingConstants;
 
 import net.mohc.smartcard.manage.PinUtilities;
-import net.mohc.smartcard.utils.RiverLayout;
 
-public class ToolsPanel extends JPanel {
+public class ToolsPanel extends PopupMenuItemPanel {
 	private static final long serialVersionUID = 2803699942090873875L;
+	private static final boolean FEATURE_FLAG_EXPERIMENTAL = false;
 
 	private JButton connectButton;
 	private JButton chooseReaderButton;
@@ -31,9 +29,23 @@ public class ToolsPanel extends JPanel {
 	private JLabel cardPicture;
 	private JButton experimentalButton;
 
+	@Override
+	public String getTitle() {
+		return "Smart Card diagnostics";
+	}
+
+	@Override
+	public String getMenuName() {
+		return "Tools";
+	}
+
+	@Override
+	public String getIconName() {
+		return "Tools16";
+	}
 	
 	public ToolsPanel () {
-		super(new RiverLayout());
+		super();
 		initialise();
 	}
 
@@ -74,7 +86,9 @@ public class ToolsPanel extends JPanel {
 		add("br", connectButton);
 		add("tab", signTestStringButton);
 		signatureField = createJTextField("Resultant Signature");
-		add("br", experimentalButton);
+		if (FEATURE_FLAG_EXPERIMENTAL) {
+			add("br", experimentalButton);
+		}
 	}
 
 	private JTextField createJTextField(String nameOfField) {
@@ -113,10 +127,6 @@ public class ToolsPanel extends JPanel {
 
 	protected void doChooseReaderAction() {
 		List<CardTerminal> allTerminals = smartCardController.findAvailableTerminals();
-//		List<String> allTerminalNames = new ArrayList<>();
-//		for (CardTerminal cardTerminal : allTerminals) {
-//			allTerminalNames.add(cardTerminal.getName());
-//		}
 		String result = CardReaderChoiceDialog.showChoices(allTerminals, smartCardController.getDefaultCardTerminalName());
 		smartCardController.setDefaultCardTerminalName(result);
 	}
@@ -157,4 +167,5 @@ public class ToolsPanel extends JPanel {
 		PinUtilities pu = new PinUtilities();
 		pu.doExperiment(smartCardController);
 	}
+
 }

@@ -10,6 +10,9 @@ import java.awt.Rectangle;
 import java.awt.Toolkit;
 import java.util.ArrayList;
 
+import javax.swing.JComponent;
+import javax.swing.JDialog;
+
 public class GraphicsToolkit {
 	
 	public static GraphicsToolkit getInstance() {
@@ -43,8 +46,7 @@ public class GraphicsToolkit {
 	private GraphicsDevice getMainGraphicsDevice() {
 		GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
 	  GraphicsDevice[] gs = ge.getScreenDevices();
-	  GraphicsDevice gsMain = getFirstWidestScreen(gs);
-	  return gsMain;
+	  return getFirstWidestScreen(gs);
 	}
 	
 	private Point getLocationOfScreen(GraphicsDevice gs) {
@@ -70,8 +72,7 @@ public class GraphicsToolkit {
 	  Dimension size = getSizeOfScreen(gsMain);
 	  int x = Math.min(dimension.width, size.width);
 	  int y = Math.min(dimension.height, size.height);
-	  Dimension revised = new Dimension(x, y);
-		return revised;
+	  return new Dimension(x, y);
 	}
 	
 	public Rectangle getSafeScreenBounds(Point pos) {
@@ -86,18 +87,22 @@ public class GraphicsToolkit {
 
 	private Insets getScreenInsetsAt(Point pos) {
     GraphicsDevice gd = getGraphicsDeviceAt(pos);
-    Insets insets = null;
+    Insets insets;
     if (gd != null) {
       insets = Toolkit.getDefaultToolkit().getScreenInsets(gd.getDefaultConfiguration());
+    } else {
+    	insets = new Insets(20, 20, 20, 20);
     }
     return insets;
 	}
 
 	private Rectangle getScreenBoundsAt(Point pos) {
     GraphicsDevice gd = getGraphicsDeviceAt(pos);
-    Rectangle bounds = null;
+    Rectangle bounds;
     if (gd != null) {
       bounds = gd.getDefaultConfiguration().getBounds();
+    } else {
+    	bounds = new Rectangle(0, 0, 640, 480);
     }
     return bounds;
 	}
@@ -105,8 +110,8 @@ public class GraphicsToolkit {
 	private GraphicsDevice getGraphicsDeviceAt(Point pos) {
     GraphicsDevice device = null;
     GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
-    GraphicsDevice lstGDs[] = ge.getScreenDevices();
-    ArrayList<GraphicsDevice> lstDevices = new ArrayList<GraphicsDevice>(lstGDs.length);
+    GraphicsDevice[] lstGDs = ge.getScreenDevices();
+    ArrayList<GraphicsDevice> lstDevices = new ArrayList<>(lstGDs.length);
     for (GraphicsDevice gd : lstGDs) {
     	GraphicsConfiguration gc = gd.getDefaultConfiguration();
     	Rectangle screenBounds = gc.getBounds();
@@ -114,12 +119,44 @@ public class GraphicsToolkit {
     		lstDevices.add(gd);
     	}
     }
-    if (lstDevices.size() > 0) {
+    if (!lstDevices.isEmpty()) {
     	device = lstDevices.get(0);
     } else {
     	device = ge.getDefaultScreenDevice();
     }
     return device;
+	}
+	
+	public Point getPositionForTrayPopupMenu(Point point, JComponent trayPopupMenu) {
+		Rectangle bounds = getSafeScreenBounds(point);
+		int x = point.x;
+		int y = point.y;
+		if (y < bounds.y) {
+			y = bounds.y;
+		} else if (y > bounds.y + bounds.height) {
+			y = bounds.y + bounds.height;
+		}
+		if (x < bounds.x) {
+			x = bounds.x;
+		} else if (x > bounds.x + bounds.width) {
+			x = bounds.x + bounds.width;
+		}
+		if (x + trayPopupMenu.getPreferredSize().width > bounds.x + bounds.width) {
+			x = (bounds.x + bounds.width) - trayPopupMenu.getPreferredSize().width;
+		}
+		if (y + trayPopupMenu.getPreferredSize().height > bounds.y + bounds.height) {
+			y = (bounds.y + bounds.height) - trayPopupMenu.getPreferredSize().height;
+		}
+		return new Point(x, y);
+	}
+
+	public void placeInCentreOfScreen(JDialog dialogue) {
+	  Point centre = getCentreOfMainScreen();
+	  Rectangle bounds = getSafeScreenBounds(centre);
+	  Dimension frameSize = dialogue.getSize();
+	  int x = Math.max(bounds.x, centre.x - (frameSize.width / 2));
+	  int y = Math.max(bounds.y, centre.y - (frameSize.height / 2));
+	  dialogue.setLocation(x, y);
 	}
 
 }

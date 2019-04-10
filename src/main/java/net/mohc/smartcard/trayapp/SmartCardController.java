@@ -25,6 +25,9 @@ import javax.swing.Timer;
 import org.apache.log4j.Logger;
 
 import net.mohc.smartcard.utils.ImageHelper;
+import net.mohc.smartcard.trayapp.p12.P12Card;
+import net.mohc.smartcard.trayapp.p12.P12CardTerminal;
+import net.mohc.smartcard.trayapp.p12.P12CardTerminalFactory;
 import net.mohc.smartcard.utils.Base64;
 
 public class SmartCardController implements SmartCardConstants {
@@ -422,7 +425,7 @@ public class SmartCardController implements SmartCardConstants {
 					String filename = file.getName().toLowerCase();
 					boolean isDll = filename.endsWith(".dll");
 					boolean looksABitLikeAPKCSLib = filename.contains("pkcs11");
-					if (file.isFile() && isDll & looksABitLikeAPKCSLib) {
+					if (file.isFile() && isDll && looksABitLikeAPKCSLib) {
 						array.add(file);
 					} else if (file.isDirectory()) {
 						addDllsToArray(array, file, safeCount+1);
@@ -435,8 +438,9 @@ public class SmartCardController implements SmartCardConstants {
 	public void openKeystore() {
 		if (null == smartCardKeyStore) {
 			try {
-				if (status.isDummy()) {
-					smartCardKeyStore = new SmartCardKeyStore(connectedCard);
+				if (connectedCard instanceof P12Card) {
+					File p12File = ((P12Card)connectedCard).getP12File();
+					smartCardKeyStore = new SmartCardKeyStore(p12File, null);
 				} else {
 			  	smartCardKeyStore = new SmartCardKeyStore(getPkcsLibraryFilename());
 				}

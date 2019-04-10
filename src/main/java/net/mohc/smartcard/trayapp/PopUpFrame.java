@@ -1,9 +1,7 @@
 package net.mohc.smartcard.trayapp;
 
 import java.awt.BorderLayout;
-import java.awt.Dimension;
 import java.awt.FlowLayout;
-import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowEvent;
@@ -12,6 +10,7 @@ import javax.swing.JButton;
 import javax.swing.JDialog;
 import javax.swing.JPanel;
 
+import net.mohc.smartcard.utils.GraphicsToolkit;
 import net.mohc.smartcard.utils.ImageHelper;
 
 public class PopUpFrame extends JDialog {
@@ -26,20 +25,11 @@ public class PopUpFrame extends JDialog {
 	}
 
 	private void initialise(JPanel contentPanel) {
-		//setDefaultCloseOperation(WindowConstants.);
 		JPanel toolbar = createDoneToolbar();
 		getContentPane().add(contentPanel, BorderLayout.CENTER);
 		getContentPane().add(toolbar,BorderLayout.SOUTH);
     pack();
-	  Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-	  Dimension frameSize = getSize();
-	  if (frameSize.height > screenSize.height) {
-	    frameSize.height = screenSize.height;
-	  }
-	  if (frameSize.width > screenSize.width) {
-	    frameSize.width = screenSize.width;
-	  }
-	  setLocation((screenSize.width - frameSize.width) / 2, (screenSize.height - frameSize.height) / 2);
+    GraphicsToolkit.getInstance().placeInCentreOfScreen(this);
 	}
 
 	private JPanel createDoneToolbar() {
@@ -58,8 +48,6 @@ public class PopUpFrame extends JDialog {
 	public static void show(String title, JPanel contentPanel) {
 		PopUpFrame frame = new PopUpFrame(title, contentPanel);
 	  frame.setVisible(true);
-//	  frame.dispose();
-	  
 	}
 
 }

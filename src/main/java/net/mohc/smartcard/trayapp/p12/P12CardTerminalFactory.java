@@ -1,4 +1,4 @@
-package net.mohc.smartcard.trayapp;
+package net.mohc.smartcard.trayapp.p12;
 
 import java.io.File;
 

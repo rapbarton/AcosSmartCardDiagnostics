@@ -1,4 +1,4 @@
-package net.mohc.smartcard.trayapp;
+package net.mohc.smartcard.trayapp.p12;
 
 import java.io.File;
 import java.io.FilenameFilter;
@@ -7,6 +7,8 @@ import javax.smartcardio.Card;
 import javax.smartcardio.CardException;
 import javax.smartcardio.CardNotPresentException;
 import javax.smartcardio.CardTerminal;
+
+import net.mohc.smartcard.trayapp.DummyCardChoiceDialog;
 
 public class P12CardTerminal extends CardTerminal {
 	public static final String TERMINAL_NAME = "MOHC PKCS12 File Terminal";
