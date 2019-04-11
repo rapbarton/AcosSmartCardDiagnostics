@@ -18,7 +18,7 @@ public class CommsClientConnection extends Thread {
 	private Logger logger;
 	private CommandProcessor commandProcessor;
 	private Socket currentSocket;
-	private StringBuffer sbDataIn;
+	private StringBuilder sbDataIn;
   private InputStream  input;
   private OutputStream output;
   private RemoteMessage remoteMessageHelper;
@@ -32,7 +32,7 @@ public class CommsClientConnection extends Thread {
 		this.setName("Client Connection " + getNextId());
 		this.commandProcessor = commandProcessor;
 		this.currentSocket = socket;
-		this.sbDataIn = new StringBuffer();
+		this.sbDataIn = new StringBuilder();
 		this.remoteMessageHelper = new RemoteMessage();
     this.jsonUtils = JSonUtilities.getInstance();
 		this.queue = new ArrayList<>();
@@ -50,6 +50,7 @@ public class CommsClientConnection extends Thread {
 		return connection;
 	}
 	
+	@Override
   public void run() {
     logger.info("Client connection made: " + currentSocket.toString());
     
@@ -68,6 +69,7 @@ public class CommsClientConnection extends Thread {
     	try {
 				sleep(250);
 			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
 			}
     	testConnection();
     }    
@@ -142,7 +144,7 @@ public class CommsClientConnection extends Thread {
   	SwingUtilities.invokeLater(new Runnable() {
 			@Override
 			public void run() {
-		  	StringBuffer sbReply = new StringBuffer();
+		  	StringBuilder sbReply = new StringBuilder();
 		    if (!processMessage (sMsg, sbReply)) {
 		    	logger.info("Remote command failed - " + sbReply.toString());
 		    }
@@ -156,7 +158,7 @@ public class CommsClientConnection extends Thread {
   /**
    * Assumes message is a json encoded command
    */
-  private boolean processMessage (String message, StringBuffer reply) {
+  private boolean processMessage (String message, StringBuilder reply) {
   	TACommand taCommand = jsonUtils.convertCommandFromJson(message);
   	reply.setLength(0);
     if (taCommand == null) {
@@ -168,9 +170,9 @@ public class CommsClientConnection extends Thread {
     return true;
   }
 
-  private boolean addToMessageQueue(String sMsg) {
+  private boolean addToMessageQueue(final String sMsg) {
     synchronized (queue) {
-      this.queue.add(new String (sMsg));//New reference as we are in a thread
+      this.queue.add(sMsg);
     }
     return true;
   }
@@ -213,10 +215,7 @@ public class CommsClientConnection extends Thread {
 		if (null == currentSocket) {
 			return true;
 		}
-		if (currentSocket.isClosed()) {
-			return true;
-		}
-		return false;
+		return currentSocket.isClosed();
 	}
 
 	public synchronized void shutdown() {

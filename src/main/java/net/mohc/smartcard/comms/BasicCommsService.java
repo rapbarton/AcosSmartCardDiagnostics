@@ -5,12 +5,13 @@ import java.util.HashMap;
 import java.util.Map;
 
 import net.mohc.smartcard.trayapp.SmartCardApplicationLauncher;
-import net.mohc.smartcard.trayapp.SmartCardConstants;
 import net.mohc.smartcard.trayapp.SmartCardException;
 
 import org.apache.log4j.Logger;
 
-public class BasicCommsService implements SmartCardConstants {
+import static net.mohc.smartcard.trayapp.SmartCardConstants.*;
+
+public class BasicCommsService {
 	private static final int DEFAULT_PORT = 9311;
 	private static final long DEFAULT_TIMEOUT = 10;
 	private static BasicCommsService singletonInstance = null;
@@ -28,30 +29,27 @@ public class BasicCommsService implements SmartCardConstants {
 	}
 
 	private BasicCommsService(boolean autostart) {
-		try {
-			logger = Logger.getLogger(BasicCommsService.class);
-			jsonUtils = JSonUtilities.getInstance();
-			handlers = new HashMap<>();
-			replyHandler = new RemoteControlReplyHandler() {
-				@Override
-				public void processReply(String msg) {
-					_processReply(msg);
-				}};
-			rcc = new CommsClient(DEFAULT_PORT, replyHandler );
-			if (autostart) {
-				startComms();
-			}
-		} catch (CommsException e) {
-			logger.error("Failure starting external Smart Card communications: " + e.getMessage());
+		logger = Logger.getLogger(BasicCommsService.class);
+		jsonUtils = JSonUtilities.getInstance();
+		handlers = new HashMap<>();
+		replyHandler = new RemoteControlReplyHandler() {
+			@Override
+			public void processReply(String msg) {
+				processJsonMessage(msg);
+			}};
+		rcc = new CommsClient(DEFAULT_PORT, replyHandler );
+		if (autostart) {
+			startComms();
 		}
 	}
 	
-	public synchronized void startComms() throws CommsException {
+	public synchronized void startComms() {
 		if (null != commsStarter && !commsStarter.isAlive()) {
 			commsStarter = null;
 		}		
 		if (null == commsStarter) {
 			commsStarter = new Thread ("Comms monitor") {
+				@Override
 				public void run() {
 					commsMonitor();
 				}
@@ -60,60 +58,13 @@ public class BasicCommsService implements SmartCardConstants {
 					boolean abort = false;
 					final TestCommand testCommand = new TestCommand();
 					do {
-						//If not connected, try connect
 						if (!rcc.isConnected()) {
 							logger.info("Not connected so trying to connect...");
-							try {
-								rcc.connect();
-								logger.info("Connected");
-								testCommand.clear();
-								testCommand.setScheduledCheckTime(timeNow() + 2);
-							} catch (CommsException e) {
-								logger.info("Test connection failed, trying to launch app");
-								SmartCardApplicationLauncher.launch();
-								try {
-									logger.info("Hang about for app to get going");
-									Thread.sleep(5000);
-								} catch (InterruptedException e2) {
-									logger.error("Unexpected interruption");
-									abort = true;
-								}
-							}
-				  	}
-						try {
-							Thread.sleep(1000);
-						} catch (InterruptedException e) {
-							logger.error("Unexpected interruption");
-							abort = true;
+							tryToConnect(testCommand);
 						}
+						abort = !sleepForSeconds(1);
 						if (rcc.isConnected()) {
-							if (!testCommand.isActive() && isTimeToCheck(testCommand.getScheduledCheckTime())) {
-								logger.info("Time to check connection by sending a test command");
-								testCommand.create();
-								testCommand.setTimeSentTestMessage(timeNow());
-								sendCommand(testCommand.get(), new TAResponseHandler(){
-									@Override
-									public void messageResponse(Map<String, String> responses) {
-										if (testCommand.isActive()) {
-											logger.info("Test command response received - all is well");
-											testCommand.clear();
-											testCommand.setScheduledCheckTime(30l + timeNow());
-										}
-									}
-									@Override
-									public void messageError(String errorMessage) {
-										testCommand.clear();
-										logger.warn("Test message failure when checking connection - killing connection");
-										rcc.disconnect();
-									}});
-							} else if (testCommand.isActive()) {
-								long timeSpentWaitingForTestResponse = timeNow() - testCommand.getTimeSentTestMessage();
-								if (timeSpentWaitingForTestResponse > 10) {
-									testCommand.clear();
-									logger.warn("Been taking too long to check connection with test command - killing connection");
-									rcc.disconnect();
-								}
-							}								
+							monitorTestCommand(testCommand);
 						}
 					} while (!abort);
 					logger.info("Finished with comms monitor");
@@ -122,7 +73,62 @@ public class BasicCommsService implements SmartCardConstants {
 			commsStarter.start();
 		}
 	}
+	
+	protected void monitorTestCommand(final TestCommand testCommand) {
+		if (!testCommand.isActive() && isTimeToCheck(testCommand.getScheduledCheckTime())) {
+			logger.info("Time to check connection by sending a test command");
+			testCommand.create();
+			testCommand.setTimeSentTestMessage(timeNow());
+			sendCommand(testCommand.get(), new TAResponseHandler(){
+				@Override
+				public void messageResponse(Map<String, String> responses) {
+					if (testCommand.isActive()) {
+						logger.info("Test command response received - all is well");
+						testCommand.clear();
+						testCommand.setScheduledCheckTime(30l + timeNow());
+					}
+				}
+				@Override
+				public void messageError(String errorMessage) {
+					testCommand.clear();
+					logger.warn("Test message failure when checking connection - killing connection");
+					rcc.disconnect();
+				}});
+		} else if (testCommand.isActive()) {
+			long timeSpentWaitingForTestResponse = timeNow() - testCommand.getTimeSentTestMessage();
+			if (timeSpentWaitingForTestResponse > 10) {
+				testCommand.clear();
+				logger.warn("Been taking too long to check connection with test command - killing connection");
+				rcc.disconnect();
+			}
+		}								
+	}
 
+	private void tryToConnect(TestCommand testCommand) {
+		try {
+			rcc.connect();
+			logger.info("Connected");
+			testCommand.clear();
+			testCommand.setScheduledCheckTime(timeNow() + 2);
+		} catch (CommsException e) {
+			logger.info("Test connection failed, trying to launch app");
+			SmartCardApplicationLauncher.launch();
+			logger.info("Hang about for app to get going");
+			sleepForSeconds(5);
+		}
+	}
+
+	private boolean sleepForSeconds(int seconds) {
+		try {
+			Thread.sleep((long)seconds * 1000l);
+			return true;
+		} catch (InterruptedException e2) {
+			logger.error("Unexpected interruption");
+			Thread.currentThread().interrupt();
+			return false;
+		}
+	}
+	
 	private class TestCommand {
 		private TACommand command = null;
 		private long scheduledCheckTime = 0;
@@ -163,8 +169,6 @@ public class BasicCommsService implements SmartCardConstants {
 	}
 
 	private Map<String, String> sendCommandAndWait(final TACommand command) {
-		//final Object o = new Object();
-		
 		final Map<String, String> retval = new HashMap<>();
 		
 		TAResponseHandler handler = new TAResponseHandler() {
@@ -176,14 +180,14 @@ public class BasicCommsService implements SmartCardConstants {
 						logger.debug("PRIMARY RXD HANDLER:" + responses.get(KEY_PRIMARY_RESPONSE));
 					}
 					retval.putAll(responses);
-					retval.notify();
+					retval.notifyAll();
 				}
 			}
 			@Override
 			public void messageError(String errorMessage) {
 				synchronized (retval) {
 					logger.info("Message failure");
-					retval.notify();
+					retval.notifyAll();
 				}
 			}
 		};
@@ -215,7 +219,7 @@ public class BasicCommsService implements SmartCardConstants {
 		}
 	}
 
-	private void _processReply(String msgInJson) {
+	private void processJsonMessage(String msgInJson) {
 		TAResponse response = jsonUtils.convertResponseFromJson(msgInJson);
 		if (null == response) {
 			logger.error("Bad response packet received");
@@ -228,7 +232,7 @@ public class BasicCommsService implements SmartCardConstants {
 			invokeHandler(handler, response);
 		} else if (TACommand.CARD_STATUS.equals(commandId)) { 
 			synchronized (msgReceivedNotificationObject) {
-				msgReceivedNotificationObject.notify();
+				msgReceivedNotificationObject.notifyAll();
 			}
 		} else {
 			logger.error("No handler for response packet received");
@@ -236,15 +240,11 @@ public class BasicCommsService implements SmartCardConstants {
 	}
 	
 	private void invokeHandler(final TAResponseHandler handler, final TAResponse response) {
-//		SwingUtilities.invokeLater(new Runnable() {
-//			@Override
-//			public void run() {
-				if (response.isOK()) {
-					handler.messageResponse(response.getResponses());
-				} else {
-					handler.messageError(response.getErrorMessage());
-				}
-//			}});
+		if (response.isOK()) {
+			handler.messageResponse(response.getResponses());
+		} else {
+			handler.messageError(response.getErrorMessage());
+		}
 	}
 
 	public boolean doTestCommsCommand() {
@@ -262,7 +262,7 @@ public class BasicCommsService implements SmartCardConstants {
 	}
 
 	public String[] doCardPresentCommand() {
-		String reply[] = new String[2];
+		String[] reply = new String[2];
 		Map<String, String> response = sendCommandAndWait(new TACommand(TACommand.CARD_STATUS));
 		String cardStatus = response.get((KEY_PRIMARY_RESPONSE));
 		if (null == cardStatus) cardStatus = "";

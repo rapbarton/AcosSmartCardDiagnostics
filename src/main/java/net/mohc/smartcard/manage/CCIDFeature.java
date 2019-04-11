@@ -30,8 +30,7 @@ public class CCIDFeature {
 			return cardChannel.transmit(new CommandAPDU(0xff, 0xc2, 0x01, this.feature, command));
 		} else {
 			byte[] result = card.transmitControlCommand(this.ioctl, command);
-			ResponseAPDU responseApdu = new ResponseAPDU(result);
-			return responseApdu;
+			return new ResponseAPDU(result);
 		}
 	}
 
@@ -40,8 +39,7 @@ public class CCIDFeature {
 			// PPDU
 			return cardChannel.transmit(new CommandAPDU(0xff, 0xc2, 0x01, this.feature, command)).getData();
 		} else {
-			byte[] result = card.transmitControlCommand(this.ioctl, command);
-			return result;
+			return card.transmitControlCommand(this.ioctl, command);
 		}
 	}
 }

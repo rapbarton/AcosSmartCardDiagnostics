@@ -2,14 +2,19 @@ package net.mohc.smartcard.trayapp;
 
 import java.awt.Component;
 import java.util.Calendar;
+import java.util.MissingResourceException;
+import java.util.ResourceBundle;
 
 import javax.swing.JLabel;
+
+import org.apache.log4j.Logger;
 
 import net.mohc.smartcard.utils.ImageHelper;
 
 public class AboutPanel extends PopupMenuItemPanel {
 	private static final long serialVersionUID = 2803699942090873875L;
-	private ImageHelper imageHelper;
+	private transient ImageHelper imageHelper;
+  private static ResourceBundle bundle = null;
 
 	public AboutPanel () {
 		super();
@@ -38,8 +43,38 @@ public class AboutPanel extends PopupMenuItemPanel {
 	}	
 
 	private Component createMainInfo() {
-		String content = "<html><h1>Smart Card for Prescribing</h1><p>Digital signing of prescriptions for OPMS<br/></p><br/><br/></html>"; 
-		return new JLabel(content);
+		StringBuilder content = new StringBuilder();
+		content.append("<html><h1>Smart Cards for Prescribing</h1>");
+		content.append("<p>Digital signing of prescriptions for OPMS<br/><br/></p>");
+		content.append("<p>Version: ");
+		content.append(getVersion());
+		content.append("</p>");
+		content.append("<p><br/><br/><small>MOHC LTD ");
+		content.append(getCurrentYear());
+		content.append("<br/></small></p>");
+		content.append("<br/><br/></html>"); 
+		return new JLabel(content.toString());
+	}
+
+  private static ResourceBundle getBundle() {
+  	if (bundle == null) {
+  		try {
+  			bundle = ResourceBundle.getBundle("smartcard");
+  		} catch (MissingResourceException e) {
+        Logger.getLogger(AboutPanel.class).error("Resource bundle 'smartcard.properties' was not found or error while reading current version. ");
+      }
+  	}
+  	return bundle;
+  }
+	
+	public static String getVersion () {
+		String version = "Unknown";
+    try {
+    	version = getBundle().getString("smartcard.version");
+    } catch (NullPointerException ex) {
+    	Logger.getLogger(AboutPanel.class).error("Error reading 'smartcard.version'");
+    }
+		return version;
 	}
 
 	private int getCurrentYear() {

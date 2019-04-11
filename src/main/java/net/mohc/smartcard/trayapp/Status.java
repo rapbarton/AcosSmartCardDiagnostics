@@ -8,7 +8,9 @@ import javax.swing.SwingUtilities;
 
 import net.mohc.smartcard.utils.ImageHelper;
 
-public class Status implements SmartCardConstants {
+import static net.mohc.smartcard.trayapp.SmartCardConstants.*;
+
+public class Status {
 	private int currentStatus = NOT_INITIALISED;
 	private String currentTerminal = TERMINAL_TYPE_NONE;
 
@@ -17,7 +19,7 @@ public class Status implements SmartCardConstants {
 	
 	public Status () {
 		imageHelper = new ImageHelper();
-		statusChangeListeners = new ArrayList<StatusChangeListener>();
+		statusChangeListeners = new ArrayList<>();
 	}
 
 	public int getCurrentStatus() {
@@ -34,14 +36,10 @@ public class Status implements SmartCardConstants {
 	public Image getCurrentStatusImage() {
 		String imageName;
 		switch (getCurrentStatus()) {
-			case NOT_INITIALISED: 
-			case TERMINAL_FOUND:
-			default: 
-				imageName = "smart-card-inactive-24";
-				break;
 			case NO_TERMINAL:
 				imageName = "smart-card-error-24";
 				break;
+			
 			case CARD_PRESENT:
 				if (isDummy()) {
 					imageName = "smart-card-dummy-24";
@@ -49,12 +47,16 @@ public class Status implements SmartCardConstants {
 					imageName = "smart-card-24";
 				}
 				break;
+			
 			case SESSION_ACTIVE:
 				imageName = "smart-card-connected-24";
 				break;
-//			case DUMMY_TERMINAL:
-//				imageName = "smart-card-dummy-24";
-//				break;
+
+			case NOT_INITIALISED: 
+			case TERMINAL_FOUND:
+			default: 
+				imageName = "smart-card-inactive-24";
+				break;
 		}		
 		return imageHelper.getImage(imageName);
 	}

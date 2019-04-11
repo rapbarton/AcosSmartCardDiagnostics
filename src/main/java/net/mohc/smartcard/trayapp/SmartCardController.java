@@ -13,8 +13,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.Vector;
-
 import javax.smartcardio.Card;
 import javax.smartcardio.CardException;
 import javax.smartcardio.CardTerminal;
@@ -30,7 +28,11 @@ import net.mohc.smartcard.trayapp.p12.P12CardTerminal;
 import net.mohc.smartcard.trayapp.p12.P12CardTerminalFactory;
 import net.mohc.smartcard.utils.Base64;
 
-public class SmartCardController implements SmartCardConstants {
+import static net.mohc.smartcard.trayapp.SmartCardConstants.*;
+
+import sun.security.pkcs11.wrapper.PKCS11Exception;
+
+public class SmartCardController {
 	private static final String STRING_TO_TEST_SIGNATURE = "A test string to test document signing.\n<tag/>";
 	private static final int CONTROL_LOOP_PERIOD = 1000;
 	private static SmartCardController instance = null;
@@ -122,7 +124,8 @@ public class SmartCardController implements SmartCardConstants {
 		CardTerminal proposed = findBestTerminalOrNull();
 		if (proposed != null) {
 			changeTerminal(proposed);
-		} else if (!status.getCurrentTerminal().equals(TERMINAL_TYPE_NONE) && !status.getCurrentTerminal().equals(TERMINAL_TYPE_DUMMY) && proposed == null) {
+		} else if (!status.getCurrentTerminal().equals(TERMINAL_TYPE_NONE) 
+				    && !status.getCurrentTerminal().equals(TERMINAL_TYPE_DUMMY)) {
 			reset();
 		} 
 		if (status.getCurrentStatus() == NOT_INITIALISED) {
@@ -131,29 +134,28 @@ public class SmartCardController implements SmartCardConstants {
 	}
 
 	private void monitorCards() {
-		if (null != selectedCardTerminal) {
-			try {
-				cardPresent = selectedCardTerminal.isCardPresent();
-				cardPresentStatus = cardPresent?SMART_CARD_INSERTED:SMART_CARD_NOT_FOUND;
-				if (cardPresent) {
-					if(!cardConnected) {
-						if (isKeyStoreOpen()) {
-							closeKeystore();
-						}
-						connectToCard();
-						status.setCurrentStatus(CARD_PRESENT);
+		if (null == selectedCardTerminal) return;
+		try {
+			cardPresent = selectedCardTerminal.isCardPresent();
+			cardPresentStatus = cardPresent?SMART_CARD_INSERTED:SMART_CARD_NOT_FOUND;
+			if (cardPresent) {
+				if(!cardConnected) {
+					if (isKeyStoreOpen()) {
+						closeKeystore();
 					}
-				} else {
-					if(cardConnected) {
-						disconnectCard();
-					}
-					status.setCurrentStatus(TERMINAL_FOUND);
+					connectToCard();
+					status.setCurrentStatus(CARD_PRESENT);
 				}
-			} catch (CardException e) {
-				cardPresent = false;
-				cardPresentStatus = SMART_CARD_ERROR;
+			} else {
+				if(cardConnected) {
+					disconnectCard();
+				}
+				status.setCurrentStatus(TERMINAL_FOUND);
 			}
-		}
+		} catch (CardException e) {
+			cardPresent = false;
+			cardPresentStatus = SMART_CARD_ERROR;
+		}		
 	}
 	
 	private void selectAppropriateDll() {
@@ -247,11 +249,29 @@ public class SmartCardController implements SmartCardConstants {
 	
 	private CardTerminal findBestTerminalOrNull () {
 		List<CardTerminal> terminals = getTerminalList(true);
+		CardTerminal bestTerminal = null;
+
 		if (terminals.isEmpty()) {
-			return null;
+			return bestTerminal;
 		}
 		
 		//Is there a default configured?
+		bestTerminal = findDefaultTerminalFromListOrNull(terminals);
+		if (null != bestTerminal) return bestTerminal;
+		
+		//First auto choice is ACOS for Windows
+		bestTerminal = findACOSTerminalIfWindowsFromListOrNull(terminals);
+		if (null != bestTerminal) return bestTerminal;
+		
+		//Second auto choice is dummy
+		bestTerminal = findDummyTerminalFromListOrNull(terminals);
+		if (null != bestTerminal) return bestTerminal;
+		
+		//Otherwise just pick first in list
+		return terminals.get(0);
+	}
+	
+	private CardTerminal findDefaultTerminalFromListOrNull(List<CardTerminal> terminals) {
 		if (!defaultCardTerminalName.isEmpty()) {
 			for (CardTerminal cardTerminal : terminals) {
 				if (defaultCardTerminalName.equals(cardTerminal.getName())) {
@@ -259,8 +279,10 @@ public class SmartCardController implements SmartCardConstants {
 				}
 			}
 		}
-		
-		//First choice is ACOS for Windows
+		return null;
+	}
+	
+	private CardTerminal findACOSTerminalIfWindowsFromListOrNull(List<CardTerminal> terminals) {
 		if (Configuration.getInstance().isWindows()) {
 			for (CardTerminal cardTerminal : terminals) {
 				if (isTerminalACOS(cardTerminal)) {
@@ -268,16 +290,16 @@ public class SmartCardController implements SmartCardConstants {
 				}
 			}
 		}
-		
-		//Second choice is dummy
+		return null;
+	}
+
+	private CardTerminal findDummyTerminalFromListOrNull(List<CardTerminal> terminals) {
 		for (CardTerminal cardTerminal : terminals) {
 			if (isTerminalDummy(cardTerminal)) {
 				return cardTerminal;
 			}
 		}
-		
-		//Otherwise just pick first in list
-		return terminals.get(0);
+		return null;
 	}
 
 	private boolean isTerminalACOS(CardTerminal terminal) {
@@ -301,9 +323,9 @@ public class SmartCardController implements SmartCardConstants {
 			selectedCardTerminal = null;
 			status.setCurrentTerminal(TERMINAL_TYPE_NONE);
 			selectAppropriateDll();
-			status.setCurrentStatus(Status.NO_TERMINAL);
+			status.setCurrentStatus(NO_TERMINAL);
 		} else if (null == selectedCardTerminal || !selectedCardTerminal.getName().equals(terminal.getName())) {
-			status.setCurrentStatus(Status.NO_TERMINAL);
+			status.setCurrentStatus(NO_TERMINAL);
 			selectedCardTerminal = terminal;
 			if (isTerminalACOS(terminal)) {
 				status.setCurrentTerminal(TERMINAL_TYPE_ACOS);
@@ -391,6 +413,7 @@ public class SmartCardController implements SmartCardConstants {
 			try {
 				connectedCard.disconnect(false);
 			} catch (CardException e) {
+				logger.warn("Had a problem disconnecting card: " + e.getMessage());
 			}
 		}
 		cardConnected = false;
@@ -402,39 +425,6 @@ public class SmartCardController implements SmartCardConstants {
 		return selectedLibraryFile.getAbsolutePath();
 	}
 	
-	public Vector<File> findDlls() {
-		String home = System.getProperty("user.dir");
-		String slash = System.getProperty("file.separator");
-		return findDlls(home+slash);
-	}
-
-	public Vector<File> findDlls(String baseLocation) {
-		Vector<File> filenames = new Vector<File>();
-		File locationOfDlls = new File(baseLocation);
-		addDllsToArray(filenames, locationOfDlls, 0);
-		return filenames;
-	}
-
-	private void addDllsToArray(Vector<File> array, File locationOfDlls, int safeCount) {
-		if (array.size() >= 100 || safeCount > 20) return;//Ensure no loops - no deeper than 20 directories
-		logger.info("Searching in " + locationOfDlls);
-		if (locationOfDlls.exists() && locationOfDlls.isDirectory()) {
-			File[] allFiles = locationOfDlls.listFiles();
-			if (null != allFiles && allFiles.length > 0) {
-				for (File file : allFiles) {
-					String filename = file.getName().toLowerCase();
-					boolean isDll = filename.endsWith(".dll");
-					boolean looksABitLikeAPKCSLib = filename.contains("pkcs11");
-					if (file.isFile() && isDll && looksABitLikeAPKCSLib) {
-						array.add(file);
-					} else if (file.isDirectory()) {
-						addDllsToArray(array, file, safeCount+1);
-					}
-				}
-			}
-		}		
-	}
-
 	public void openKeystore() {
 		if (null == smartCardKeyStore) {
 			try {
@@ -482,7 +472,7 @@ public class SmartCardController implements SmartCardConstants {
 				signature = "ERROR: " + e.getMessage();
 			}	catch (java.security.ProviderException pe) {
 				Throwable cause = pe.getCause();
-				if (null != cause && cause instanceof sun.security.pkcs11.wrapper.PKCS11Exception) {
+				if (cause instanceof sun.security.pkcs11.wrapper.PKCS11Exception) {
 					sun.security.pkcs11.wrapper.PKCS11Exception pkCause = (sun.security.pkcs11.wrapper.PKCS11Exception) cause;
 					signature = "ERROR: PKCS11Exception (Error Code " + pkCause.getErrorCode() + ") " + pkCause.getMessage();
 				} else {
@@ -508,8 +498,8 @@ public class SmartCardController implements SmartCardConstants {
 				signature = "ERROR: " + e.getMessage();
 			}	catch (java.security.ProviderException pe) {
 				Throwable cause = pe.getCause();
-				if (null != cause && cause instanceof sun.security.pkcs11.wrapper.PKCS11Exception) {
-					sun.security.pkcs11.wrapper.PKCS11Exception pkCause = (sun.security.pkcs11.wrapper.PKCS11Exception) cause;
+				if (cause instanceof PKCS11Exception) {
+					PKCS11Exception pkCause = (PKCS11Exception) cause;
 					signature = "ERROR: PKCS11Exception (Error Code " + pkCause.getErrorCode() + ") " + pkCause.getMessage();
 				} else {
 					signature = "ERROR: Provider exception, " + pe.getMessage();
@@ -565,7 +555,7 @@ public class SmartCardController implements SmartCardConstants {
 
 	public boolean isCardPresent() {
 		int statusValue = status.getCurrentStatus();
-		return statusValue == Status.CARD_PRESENT || statusValue == Status.SESSION_ACTIVE;
+		return statusValue == CARD_PRESENT || statusValue == SESSION_ACTIVE;
 	}
 
 	public String getSessionId() {
@@ -618,8 +608,7 @@ public class SmartCardController implements SmartCardConstants {
 		X509Certificate firstCertificate = aCertificationChain[0];
 		if (firstCertificate != null) {
 			byte[] certPathEncoded = aCertificationChain[0].getEncoded();
-			String base64encodedCertChain = Base64.encodeBytes(certPathEncoded);
-			return base64encodedCertChain;
+			return Base64.encodeBytes(certPathEncoded);
 		}
 		throw new CertificateException("No certificates found");
 	}

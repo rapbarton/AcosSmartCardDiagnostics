@@ -42,7 +42,7 @@ public class RemoteMessageTest {
 		RemoteMessage uut = new RemoteMessage();
 		uut.setMessage("Abc");
 		String formattedMessage = uut.getFormattedMessage();
-		StringBuffer inputBuffer = new StringBuffer(formattedMessage);
+		StringBuilder inputBuffer = new StringBuilder(formattedMessage);
 		String result = uut.scan(inputBuffer);
 		assertEquals("Abc", result);
 		assertEquals("", inputBuffer.toString());
@@ -53,7 +53,7 @@ public class RemoteMessageTest {
 		RemoteMessage uut = new RemoteMessage();
 		uut.setMessage("Abc");
 		String formattedMessage = uut.getFormattedMessage();
-		StringBuffer inputBuffer = new StringBuffer("xxx"+formattedMessage+"yyy");
+		StringBuilder inputBuffer = new StringBuilder("xxx"+formattedMessage+"yyy");
 		String result = uut.scan(inputBuffer);
 		assertEquals("Abc", result);
 		assertEquals("yyy", inputBuffer.toString());
@@ -68,7 +68,7 @@ public class RemoteMessageTest {
 		String formattedMessage2 = uut.getFormattedMessage();
 		uut.setMessage("Ghijk");
 		String formattedMessage3 = uut.getFormattedMessage();
-		StringBuffer inputBuffer = new StringBuffer();
+		StringBuilder inputBuffer = new StringBuilder();
 		inputBuffer.append("xxx");
 		inputBuffer.append(formattedMessage1);
 		inputBuffer.append(formattedMessage2);
@@ -94,7 +94,7 @@ public class RemoteMessageTest {
 		String formattedMessage2Corrupted = formattedMessage2.replaceAll("Bad message", "B@d message");
 		uut.setMessage("Ghijk");
 		String formattedMessage3 = uut.getFormattedMessage();
-		StringBuffer inputBuffer = new StringBuffer();
+		StringBuilder inputBuffer = new StringBuilder();
 		inputBuffer.append("xxx");
 		inputBuffer.append(formattedMessage1);
 		inputBuffer.append(formattedMessage2Corrupted);

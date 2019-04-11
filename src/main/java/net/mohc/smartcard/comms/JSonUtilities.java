@@ -25,8 +25,7 @@ public class JSonUtilities {
 		try {
 			jsonString = jsonParser.writeValueAsString(responsePacket);
 		} catch (JsonProcessingException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			logger.error("Failed to parse JSON: " + e.toString());
 		}
 		return jsonString;
 	}
@@ -48,8 +47,7 @@ public class JSonUtilities {
 		try {
 			jsonString = jsonParser.writeValueAsString(commandPacket);
 		} catch (JsonProcessingException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			logger.error("Failed to parse JSON: " + e.toString());
 		}
 		return jsonString;
 	}

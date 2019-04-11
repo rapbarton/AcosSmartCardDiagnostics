@@ -7,6 +7,8 @@ import javax.smartcardio.CardTerminal;
 public class P12CardTerminalFactory {
 	private static P12CardTerminal terminalInstance = null;
 
+	private P12CardTerminalFactory () {}
+	
 	public static CardTerminal getP12CardTerminal() {
 		String home = System.getProperty("user.dir");
 		String slash = System.getProperty("file.separator");

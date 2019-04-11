@@ -11,12 +11,9 @@ import org.apache.log4j.Logger;
 
 public class CommsServerSocket extends Thread {
 
-//  private static final int TIME_BETWEEN_MSGS = 300;
   private static final int TIME_BETWEEN_ACCEPTS = 500;
-//	private static final long TIME_BETWEEN_CONNECTION_ATTEMPTS = 1000;
   private ServerSocket serverSocket;
   private CommandProcessor commandProcessor;
-  InetAddress iaLocal = null;
 	private Logger logger;
 	private boolean isCloseRequested = false;
   private ArrayList<CommsClientConnection> connectionPool;
@@ -45,6 +42,7 @@ public class CommsServerSocket extends Thread {
     }
   }
 
+  @Override
   public void run() {
     logger.info("Listener up");
     try {
@@ -62,6 +60,7 @@ public class CommsServerSocket extends Thread {
     try {
 			serverSocket.close();
 		} catch (IOException e) {
+			logger.warn("Socket was not closed cleanly");
 		}
     logger.info("Listener down");
   }
@@ -112,21 +111,23 @@ public class CommsServerSocket extends Thread {
     try {
       sleep(time);
     } catch (InterruptedException ie) {
+    	Thread.currentThread().interrupt();
       logger.warn("Insomnia " + ie);
     }		
 	}
 
 	private boolean checkConnectionValid (Socket s) {
     InetAddress iaConnect = s.getInetAddress();
-    iaLocal = s.getLocalAddress();
+    InetAddress iaLocal = s.getLocalAddress();
     if (!iaLocal.equals(iaConnect)) {
-      logger.warn("ACCESS DENIED - Only local connects permitted");
-      logger.info("ACCESS DENIED - Only local connects permitted");
+      logger.error("ACCESS DENIED - Only local connects permitted");
       logger.info("Local host = " + iaLocal);
       logger.info("Remote client = " + iaConnect);
       try {
         s.close();
-      } catch (Exception e) {}
+      } catch (Exception e) {
+      	logger.warn("Failed to cleanly close socket");
+      }
       return false;
     }
     return true;

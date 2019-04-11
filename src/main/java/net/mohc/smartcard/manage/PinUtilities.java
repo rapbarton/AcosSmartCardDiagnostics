@@ -28,7 +28,7 @@ public class PinUtilities {
 	public static final byte FEATURE_EID_PIN_PAD_READER_TAG = (byte) 0x80;
 
 	private Logger logger = Logger.getLogger(PinUtilities.class);
-	private Set<String> ppduNames = new HashSet<String>();
+	private Set<String> ppduNames = new HashSet<>();
 	
 	public void doExperiment(SmartCardController smartCardController) {
 		addPPDUName("ACS CCID USB");

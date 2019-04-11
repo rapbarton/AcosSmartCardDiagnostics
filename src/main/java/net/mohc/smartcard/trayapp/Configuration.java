@@ -3,8 +3,9 @@ package net.mohc.smartcard.trayapp;
 import java.io.File;
 import java.util.HashMap;
 import java.util.Properties;
+import static net.mohc.smartcard.trayapp.SmartCardConstants.*;
 
-public class Configuration  implements SmartCardConstants {
+public class Configuration {
 	private static final String DEFAULT_DLL_FILENAME_32BIT = "acospkcs11v4x86.dll";
 	private static final String DEFAULT_DLL_FILENAME_64BIT = "acospkcs11v4x64.dll";
 	private static final String ACOS_DLL_FILENAME_32BIT = "acospkcs11v4x86.dll";

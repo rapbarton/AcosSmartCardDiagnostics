@@ -1,6 +1,8 @@
 package net.mohc.smartcard.trayapp;
 
-public interface SmartCardConstants {
+public final class SmartCardConstants {
+	private SmartCardConstants () {}
+	
 	public static final int NOT_INITIALISED = 0;
 	public static final int NO_TERMINAL = 1;
 	public static final int TERMINAL_FOUND = 2;
@@ -36,6 +38,4 @@ public interface SmartCardConstants {
 	public static final String CERT_DETAIL_VALID_FROM = "validFrom";
 	public static final String CERT_IS_VALID = "isValid";
 	public static final String CERT_STATUS = "certStatus";
-	
-
 }

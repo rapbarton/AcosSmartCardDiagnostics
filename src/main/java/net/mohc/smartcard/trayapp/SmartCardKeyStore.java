@@ -37,16 +37,16 @@ import javax.security.auth.callback.CallbackHandler;
 import javax.security.auth.callback.PasswordCallback;
 import javax.security.auth.callback.UnsupportedCallbackException;
 import javax.security.auth.login.LoginException;
-import javax.smartcardio.Card;
-
 import org.apache.log4j.Logger;
 
-import net.mohc.smartcard.trayapp.p12.P12Card;
 import net.mohc.smartcard.utils.Base64;
+
 import sun.security.pkcs11.SunPKCS11;
 import sun.security.x509.X509CertInfo;
 
-public class SmartCardKeyStore implements SmartCardConstants {
+import static net.mohc.smartcard.trayapp.SmartCardConstants.*;
+
+public class SmartCardKeyStore {
 	private static final String MYSQL_DATE_FORMAT = "yyyy-MM-dd";
 	private KeyStore ks;
 	private KeyStore.Builder builder;
@@ -134,7 +134,7 @@ public class SmartCardKeyStore implements SmartCardConstants {
 			loadPrivateKeyAndCertChainWithChoice(p12Password);
 			status = "Card OK";
 			certificateCN = getCertificateCommonName();
-			return;
+
 		} catch (CertificateException | IOException e) {
 			reportFatalProblemAndGiveUp("Exception loading keystore: " + e.getMessage());
 		} catch (KeyStoreException e) {

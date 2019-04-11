@@ -12,8 +12,10 @@ import org.apache.log4j.Logger;
 import net.mohc.smartcard.comms.CommandProcessor;
 import net.mohc.smartcard.comms.TACommand;
 import net.mohc.smartcard.comms.TAResponse;
+import static net.mohc.smartcard.trayapp.SmartCardConstants.*;
 
-public class SmartCardCommandProcessor implements CommandProcessor, SmartCardConstants {
+public class SmartCardCommandProcessor implements CommandProcessor {
+	private static final String NO_CERTIFICATE_VISIBLE = "No certificate visible";
 	private Logger logger;
 	private SmartCardController controller;
 	
@@ -88,16 +90,15 @@ public class SmartCardCommandProcessor implements CommandProcessor, SmartCardCon
 	
   private TAResponse commandCardPresentStatus (TACommand commandPacket) {
     logger.info("Card status command received");
-    TAResponse responsePacket = TAResponse.buildResponse(commandPacket)
+    return TAResponse.buildResponse(commandPacket)
     		.addPrimaryResponse(controller.getCardPresentStatus())
     		.addResponse(KEY_CARD_INFO, controller.connectedCardInfo());
-  	return responsePacket;
   }
   
   private TAResponse commandCertificateOwner (TACommand commandPacket) {
   	String status = controller.getCertificateStatus();
   	if (null == status || status.isEmpty()) {
-  		return TAResponse.buildResponse(commandPacket).addPrimaryResponse("No certificate visible");
+  		return TAResponse.buildResponse(commandPacket).addPrimaryResponse(NO_CERTIFICATE_VISIBLE);
   	} else {
   		return TAResponse.buildResponse(commandPacket).addPrimaryResponse(status);
   	}
@@ -106,23 +107,20 @@ public class SmartCardCommandProcessor implements CommandProcessor, SmartCardCon
   private TAResponse commandCertificateDetail (TACommand commandPacket) {
   	Map<String, String> status = controller.getCertificateDetails();
   	if (null == status || status.isEmpty()) {
-  		return TAResponse.buildResponse(commandPacket).addPrimaryResponse("No certificate visible");
+  		return TAResponse.buildResponse(commandPacket).addPrimaryResponse(NO_CERTIFICATE_VISIBLE);
   	} else {
-  		TAResponse response = TAResponse.buildResponse(commandPacket)
+  		return TAResponse.buildResponse(commandPacket)
   				.addPrimaryResponse("OK")
   				.addResponses(status);
-  		return response;
   	}
   }
   
   private TAResponse commandCertificateEncoded (TACommand commandPacket) {
   	String encodedCertificate = controller.getCertificateEncoded();
   	if (null == encodedCertificate || encodedCertificate.isEmpty()) {
-  		return TAResponse.buildResponse(commandPacket).addPrimaryResponse("No certificate visible");
+  		return TAResponse.buildResponse(commandPacket).addPrimaryResponse(NO_CERTIFICATE_VISIBLE);
   	} else {
-  		TAResponse response = TAResponse.buildResponse(commandPacket)
-  				.addPrimaryResponse(encodedCertificate);
-  		return response;
+  		return TAResponse.buildResponse(commandPacket).addPrimaryResponse(encodedCertificate);
   	}
   }
   

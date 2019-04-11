@@ -6,6 +6,22 @@
   <name>SmartCard</name>
   <description>Experimental</description>
   <build>
+
+			<sourceDirectory>src</sourceDirectory>
+			<testSourceDirectory>src/test/java</testSourceDirectory>
+			<resources>
+				<resource>
+					<directory>src/main</directory>
+					<excludes>
+						<exclude>**/*.java</exclude>
+					</excludes>
+				</resource>
+				<resource>
+					<directory>src/main/resources</directory>
+					<filtering>true</filtering>
+				</resource>
+			</resources>
+
   		<plugins>
 <!--			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -13,6 +29,7 @@
 				<version>1.9.2</version>
 			</plugin> -->
 			<!-- Tell maven to compile using 1.7 -->
+			
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
@@ -74,7 +91,7 @@
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
 			<version>4.10</version>
-			<scope>test</scope>
+			<!-- <scope>test</scope> -->
 		</dependency>
 
   </dependencies> 

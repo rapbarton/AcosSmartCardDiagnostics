@@ -61,7 +61,7 @@ public class RiverLayout
    public static final String VTOP = "vtop";
    public static final String VCENTER = "vcenter";
 
-   Map<Component, String> constraints = new HashMap<Component, String>();
+   transient Map<Component, String> constraints = new HashMap<>();
    String valign = VCENTER;
    int hgap;
    int vgap;

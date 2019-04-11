@@ -23,7 +23,7 @@ public class TAResponse {
 		this.commandId = commandId;
 		this.isOK = true;
 		this.errorMessage = "";
-		this.responses = new HashMap<String, String>();
+		this.responses = new HashMap<>();
 	}
 
 	public String getCommandId() {

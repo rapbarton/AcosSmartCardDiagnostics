@@ -5,6 +5,8 @@ import java.awt.Toolkit;
 
 import javax.swing.UIManager;
 
+import org.apache.log4j.Logger;
+
 public class RemoteConsoleApplication {
 	boolean packFrame = false;
 
@@ -37,7 +39,7 @@ public class RemoteConsoleApplication {
       UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
     }
     catch(Exception e) {
-      e.printStackTrace();
+      Logger.getLogger(RemoteConsoleApplication.class).error("Couldn't set look and feel");
     }
     new RemoteConsoleApplication();
   }

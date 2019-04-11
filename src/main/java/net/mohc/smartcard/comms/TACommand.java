@@ -40,7 +40,7 @@ public class TACommand {
 	public TACommand (String command) {
 		String[] parts = command.split(":");
 		this.command = parts[0];
-		this.arguments = new ArrayList<String>();
+		this.arguments = new ArrayList<>();
 		if (parts.length > 1) {
 			for (int i = 1; i < parts.length; i++) {
 				arguments.add(parts[i].trim());

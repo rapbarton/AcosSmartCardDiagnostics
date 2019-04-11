@@ -38,6 +38,7 @@ public class SmartCardApplicationLauncher extends Thread {
 		}
 	}
 
+	@Override
 	public void run() {
 		while(true) {
 			if (!running && dueForAnAttempt()) {
@@ -47,6 +48,7 @@ public class SmartCardApplicationLauncher extends Thread {
 				Thread.sleep(1000l);
 			} catch (InterruptedException e) {
 				logger.info("Launcher aborted");
+				Thread.currentThread().interrupt();
 				return;
 			}
 			if (running && requestRestart && dueForAnAttempt()) {
@@ -55,9 +57,8 @@ public class SmartCardApplicationLauncher extends Thread {
 			}
 		}
 	}
-	
-	
-	public boolean launchAttempt() {
+		
+	private boolean launchAttempt() {
   	logger.info("Trying to start tray application");
 		boolean started = false;
   	Runtime rt = Runtime.getRuntime();
@@ -69,33 +70,10 @@ public class SmartCardApplicationLauncher extends Thread {
 			InputStreamReader er = new InputStreamReader(pr.getErrorStream());
       StringBuilder stdLine = new StringBuilder();
       StringBuilder errLine = new StringBuilder();
-      started = false;
-
       long timeout = timeNow() + 20;
       do {
-      	while (in.ready()) {
-      		char c = (char) in.read();
-      		if (c == '\n') {
-      			String line = stdLine.toString();
-          	stdLine.setLength(0);
-          	logger.info(line.trim());
-          	if (line.contains("Smart Card Application started")) {
-          		started = true;
-          	}
-      		} else {
-      			stdLine.append(c);
-      		}
-      	}
-      	while (er.ready()) {
-      		char c = (char) er.read();
-      		if (c == '\n') {
-      			String line = errLine.toString();
-          	errLine.setLength(0);
-          	logger.warn(line.trim());
-      		} else {
-      			errLine.append(c);
-      		}
-      	}
+      	started = readStandardOut(in, stdLine);
+      	readErrorOut(er, errLine);
       } while (timeNow() < timeout && !started);
 		} catch (IOException e) {
 			logger.error("Failed to execute command to start tray application");
@@ -104,6 +82,37 @@ public class SmartCardApplicationLauncher extends Thread {
 		}
 		lastAttempt = timeNow();
 		return started;
+	}
+	
+	private boolean readStandardOut(InputStreamReader in, StringBuilder stdLine) throws IOException {
+		boolean started = false;
+		while (in.ready()) {
+  		char c = (char) in.read();
+  		if (c == '\n') {
+  			String line = stdLine.toString();
+      	stdLine.setLength(0);
+      	logger.info(line.trim());
+      	if (line.contains("Smart Card Application started")) {
+      		started = true;
+      	}
+  		} else {
+  			stdLine.append(c);
+  		}
+  	}
+		return started;
+	}
+
+	private void readErrorOut(InputStreamReader er, StringBuilder errLine) throws IOException {
+  	while (er.ready()) {
+  		char c = (char) er.read();
+  		if (c == '\n') {
+  			String line = errLine.toString();
+      	errLine.setLength(0);
+      	logger.warn(line.trim());
+  		} else {
+  			errLine.append(c);
+  		}
+  	}
 	}
 
 	private long timeNow() {
@@ -136,11 +145,10 @@ public class SmartCardApplicationLauncher extends Thread {
 	}
 
 	private String pathToJava() {
-		//TODO May wish to use different jvm in the future  
 		return System.getProperty("java.home") + separator() + "bin";
 	}
 
-	private Object pathToTrayJar() {
+	private String pathToTrayJar() {
 		String trayJar = System.getProperty("smart.card.jar", "");
 		if (trayJar.isEmpty()) {
 			String base = System.getProperty("user.dir");

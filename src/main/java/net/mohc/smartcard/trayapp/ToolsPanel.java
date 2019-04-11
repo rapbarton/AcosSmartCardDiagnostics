@@ -31,7 +31,7 @@ public class ToolsPanel extends PopupMenuItemPanel {
 
 	@Override
 	public String getTitle() {
-		return "Smart Card diagnostics";
+		return "Smart Card Tools";
 	}
 
 	@Override
@@ -74,7 +74,7 @@ public class ToolsPanel extends PopupMenuItemPanel {
 	}
 
 	private void initLayout() {
-		add("vtop hfill", new JLabel("<html><h1>Prescribing Card Diagnostics</h1>"));
+		add("vtop hfill", new JLabel("<html><h1>Card Reader and Prescribing Card Tools</h1>"));
 		cardPicture = new JLabel("");
 		cardPicture.setAlignmentY(SwingConstants.RIGHT);
 		add("br", chooseReaderButton);

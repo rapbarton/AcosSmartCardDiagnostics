@@ -2,26 +2,26 @@ package net.mohc.smartcard.comms;
 
 import java.awt.*;
 import java.awt.event.*;
-
 import javax.swing.*;
-
-import net.mohc.smartcard.trayapp.SmartCardConstants;
 
 import org.apache.log4j.Logger;
 
 import java.util.Map;
 import java.util.Map.Entry;
 
-public class RemoteConsoleFrame extends JFrame
-                                implements RemoteControlReplyHandler, SmartCardConstants {
+import static net.mohc.smartcard.trayapp.SmartCardConstants.*;
 
-  private static final String CONNECTED_REPLY = "Connected:";
+public class RemoteConsoleFrame extends JFrame
+                                implements RemoteControlReplyHandler {
+
+	private static final long serialVersionUID = 2413544793004589640L;
+	private static final String CONNECTED_REPLY = "Connected:";
 	private static final String SESSIONID_TAG = "[SESSIONID]";
-  private BasicCommsService commsService;
+  private transient BasicCommsService commsService;
   private static final String CONNECTED = "Connected";
   private static final String IDLE = "Not connected";
 
-  Logger logger;
+  private transient Logger logger;
   JPanel contentPane;
   JTextField commandTextField = new JTextField();
   JComboBox<Option> commands = new JComboBox<>(getCommands());
@@ -34,7 +34,7 @@ public class RemoteConsoleFrame extends JFrame
   JButton connectButton = new JButton();
   JTextField connectedStatusOutput = new JTextField();
   String sessionId = "";
-  ConnectionMonitor monitor;
+  RemoteConsoleConnectionMonitor monitor;
 	boolean isConnected = false;
 
   /**Construct the frame*/
@@ -44,9 +44,7 @@ public class RemoteConsoleFrame extends JFrame
     try {
       init();
       commsService = BasicCommsService.getInstance(false);
-      monitor = ConnectionMonitor.startMonitoring(this);
-    } catch (CommsException rce) {
-      logger.error(rce.getMessage());
+      monitor = RemoteConsoleConnectionMonitor.startMonitoring(this);
     } catch (Exception e) {
       logger.error(e.getMessage());
     }
@@ -81,15 +79,14 @@ public class RemoteConsoleFrame extends JFrame
 		};
 	}
 	/**Component initialisation*/
-  private void init() throws Exception  {
+  private void init() {
     sendCommandButton.setActionCommand("New");
     sendCommandButton.setText("Send Command");
     sendCommandButton.addActionListener(new java.awt.event.ActionListener() {
       public void actionPerformed(ActionEvent e) {
-        doSendCommandAction(e);
+        doSendCommandAction();
       }
     });
-    //setIconImage(Toolkit.getDefaultToolkit().createImage(RemoteConsoleFrame.class.getResource("[Your Icon]")));
     contentPane = (JPanel) this.getContentPane();
     contentPane.setLayout(gridBagLayout1);
     this.setSize(new Dimension(600, 400));
@@ -97,7 +94,7 @@ public class RemoteConsoleFrame extends JFrame
     connectButton.setText("Connect");
     connectButton.addActionListener(new java.awt.event.ActionListener() {
       public void actionPerformed(ActionEvent e) {
-        doConnectAction(e);
+        doConnectAction();
       }
     });
     connectedStatusOutput.setEditable(false);
@@ -115,7 +112,7 @@ public class RemoteConsoleFrame extends JFrame
     clearCommandTextButton.setText("Clear");
     clearCommandTextButton.addActionListener(new java.awt.event.ActionListener() {
       public void actionPerformed(ActionEvent e) {
-        doClearCommandTextAction(e);
+      	commandTextField.setText("");
       }
     });
     commands.addItemListener(new ItemListener() {
@@ -152,6 +149,7 @@ public class RemoteConsoleFrame extends JFrame
     scrollPane1.getViewport().add(consoleArea, null);
   }
   /**Overridden so we can exit when window is closed*/
+  @Override
   protected void processWindowEvent(WindowEvent e) {
     super.processWindowEvent(e);
     if (e.getID() == WindowEvent.WINDOW_CLOSING) {
@@ -159,21 +157,17 @@ public class RemoteConsoleFrame extends JFrame
     }
   }
 
-  void doConnectAction(ActionEvent ev) {
-  	try {
-			commsService.startComms();
-		} catch (CommsException e) {
-			connectedStatusOutput.setText("Failed connect request");
-		}
+  void doConnectAction() {
+		commsService.startComms();
   }
 
-  void doSendCommandAction(ActionEvent e) {
+  void doSendCommandAction() {
     try {
     	commsService.sendCommand(new TACommand(commandTextField.getText()), createHandler());
       connectedStatusOutput.setText("Message sent");
     } catch(Exception ex) {
       connectedStatusOutput.setText("Error");
-      System.out.println("ERROR: " + ex.toString());
+      logger.error("ERROR: " + ex.toString());
     }
   }
 
@@ -184,10 +178,6 @@ public class RemoteConsoleFrame extends JFrame
   		command = command.replace(SESSIONID_TAG, sessionId);
     }  	
     commandTextField.setText(command);
-  }
-
-  void doClearCommandTextAction(ActionEvent e) {
-    commandTextField.setText("");
   }
 
   public void processReply (String sMsg) {
@@ -264,21 +254,5 @@ public class RemoteConsoleFrame extends JFrame
 		}
 	}
 
-	private static class ConnectionMonitor extends Timer {
-		private ConnectionMonitor(int delay, ActionListener listener) {
-			super(delay, listener);
-			this.setRepeats(true);
-			this.setCoalesce(true);
-		}
-		public static ConnectionMonitor startMonitoring(final RemoteConsoleFrame parent) {
-			ConnectionMonitor instance = new ConnectionMonitor(250, new ActionListener() {
-				public void actionPerformed(ActionEvent e) {
-					parent.doCheck();
-				}
-			});
-			instance.start();
-			return instance;
-		}
-	}
   
 }

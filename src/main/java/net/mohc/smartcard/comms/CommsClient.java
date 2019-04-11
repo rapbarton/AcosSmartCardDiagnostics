@@ -13,21 +13,15 @@ public class CommsClient {
   private int iTTPort;
   private BufferedOutputStream bos;
   private BufferedInputStream bis;
-  //private boolean bConnected = false;
   private Socket socket;
-  private InetAddress ipAddr;
-  //private Object lock;
-  //private RemoteMessage remoteMessage;
   private Receiver receiver;
   private RemoteControlReplyHandler rcrh;
   private Logger logger;
   
-  public CommsClient (int port, RemoteControlReplyHandler rcrh) throws CommsException {
+  public CommsClient (int port, RemoteControlReplyHandler rcrh) {
   	logger = Logger.getLogger(this.getClass());
-    //lock = new Object();
     this.iTTPort = port;
     this.rcrh = rcrh;
-    //remoteMessage = new RemoteMessage();
     receiver = new Receiver (this);
     receiver.start();
   }
@@ -45,12 +39,11 @@ public class CommsClient {
     }
   }
 
-  private synchronized void connect(InetAddress ip) throws CommsException {
+  private synchronized void connect(InetAddress ipAddr) throws CommsException {
     try {
     	if (isConnected()) {
     		logger.info("Connection requested but ignoring because already connected");
     	} else {
-        ipAddr = ip;
         if (socket != null) {
       		logger.info("Closing an old socket");
         	disconnect();
@@ -70,9 +63,9 @@ public class CommsClient {
   /**
    * Sends a message.
    */
-  public synchronized boolean sendMessage (String msg) {
+  public synchronized boolean sendMessage (final String msg) {
   	RemoteMessage remoteMessage = new RemoteMessage();
-    remoteMessage.setMessage(new String(msg));
+    remoteMessage.setMessage(msg);
     return remoteMessage.sendMessage(bos);
   }
 
@@ -80,19 +73,19 @@ public class CommsClient {
   	if (isConnected()) {
   		try {
 				socket.close();
-			} catch (IOException e) {}
+			} catch (IOException e) {/*Don't care*/}
   	}
   	socket = null;
   	if (null != bis) {
     	try {
 				bis.close();
-			} catch (IOException e) {}
+			} catch (IOException e) {/*Don't care*/}
   	}
   	bis = null;
   	if (null != bos) {
     	try {
     		bos.close();
-			} catch (IOException e) {}
+			} catch (IOException e) {/*Don't care*/}
   	}
 		bos = null;
   }  	
@@ -105,9 +98,6 @@ public class CommsClient {
   	return null != socket && socket.isConnected() && !socket.isClosed();
   }
 
-  private void invokeProcessMessage(final String sMsg) {
-  	rcrh.processReply(new String (sMsg));
-  }
 
   class Receiver extends Thread {
     CommsClient parent;
@@ -123,39 +113,22 @@ public class CommsClient {
       abort = true;
     }
 
+    @Override
     public void run () {
       RemoteMessage rm = new RemoteMessage();
-      StringBuffer sbDataIn = new StringBuffer();
+      StringBuilder sbDataIn = new StringBuilder();
       while (!abort) {
         while (!parent.isConnected() && !abort) { 
-          try {
-            sleep(100);
-          } catch (InterruptedException ie) {
-          }
+          sleep100();
         }
         if (abort) {
         	break;
         }
-
-        try {
-          sleep(100);
-        } catch (InterruptedException ie) {
-        }
-        
+        sleep100();
         yield();
         try {
         	if (parent.isConnected()) {
-	          int iChrs = parent.bis.available();
-	          if (iChrs > 0) {
-	            byte[] ba = new byte[iChrs];
-	            parent.bis.read(ba, 0, iChrs);
-	            sbDataIn.append(new String(ba));
-	            //Got some data so scan...
-	            String sMsg = rm.scan(sbDataIn);
-	            if (sMsg != null) {
-	              parent.invokeProcessMessage(sMsg);
-	            }
-	          }
+        		scanAndProcessReplies(sbDataIn, rm);
         	}
         } catch (Exception e) {
           logger.info("Socket error - " + e.getMessage());
@@ -164,6 +137,30 @@ public class CommsClient {
       }      
       logger.info("RemoteControlClient killed");
     }
+    
+    private void scanAndProcessReplies(StringBuilder sbDataIn, RemoteMessage rm) throws IOException {
+      int iChrs = parent.bis.available();
+      if (iChrs > 0) {
+        byte[] ba = new byte[iChrs];
+        parent.bis.read(ba, 0, iChrs);
+        sbDataIn.append(new String(ba));
+        //Got some data so scan...
+        String sMsg = rm.scan(sbDataIn);
+        if (sMsg != null) {
+        	rcrh.processReply(sMsg);
+        }
+      }
+			
+		}
+
+		private void sleep100() {
+      try {
+        sleep(100);
+      } catch (InterruptedException ie) {
+      	Thread.currentThread().interrupt();
+      }
+    }
+    
   }
 
 

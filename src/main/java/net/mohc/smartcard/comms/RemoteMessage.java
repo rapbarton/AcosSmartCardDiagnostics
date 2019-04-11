@@ -83,7 +83,7 @@ public class RemoteMessage {
    * affected by this method
    * @return the message or null if none found.
    */
-  public String scan (StringBuffer inputBuffer) {
+  public String scan (StringBuilder inputBuffer) {
     String result = null;
     String sIn = inputBuffer.toString();
     int iTagStart = sIn.indexOf(START_TAG);
@@ -151,15 +151,19 @@ public class RemoteMessage {
    */
   protected String removeHeader(String msg) {
     String result = null;
-    String sLength, sCrc, sBody, sRemains;
-    int iLength, iCrc;
+    String sLength;
+    String sCrc;
+    String sBody;
+    String sRemains;
+    int iLength; 
+    int iCrc;
     lastError = "bad message format";
-    int ix = msg.indexOf(":");
+    int ix = msg.indexOf(':');
     if (ix > 0) {
       sLength = msg.substring(0,ix++);
       sRemains = msg.substring(ix);
 
-      ix = sRemains.indexOf(":");
+      ix = sRemains.indexOf(':');
       if (ix > 0) {
         sCrc = sRemains.substring(0,ix++);
         sBody = sRemains.substring(ix);
