@@ -42,9 +42,9 @@ public class Configuration {
 		if (isLinux()) {
 			filename = "tbd";
 		} else {
-			filename = is64bit0()?dllNames64bit.get(cardType):dllNames32bit.get(cardType);
+			filename = is64bit()?dllNames64bit.get(cardType):dllNames32bit.get(cardType);
 			if (null == filename) {
-				filename = is64bit0()?DEFAULT_DLL_FILENAME_64BIT:DEFAULT_DLL_FILENAME_32BIT;
+				filename = is64bit()?DEFAULT_DLL_FILENAME_64BIT:DEFAULT_DLL_FILENAME_32BIT;
 			}
 		}
 		String dllPath = System.getProperty("location.dll", ".");
@@ -67,7 +67,7 @@ public class Configuration {
 	  return false;
 	}
 
-	private boolean is64bit0() {
+	public boolean is64bit() {
 	  String systemProp = System.getProperty("com.ibm.vm.bitmode");
 	  if (systemProp != null) {
 	     return "64".equals(systemProp);

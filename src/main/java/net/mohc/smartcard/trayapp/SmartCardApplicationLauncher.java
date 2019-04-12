@@ -145,7 +145,11 @@ public class SmartCardApplicationLauncher extends Thread {
 	}
 
 	private String pathToJava() {
-		return System.getProperty("java.home") + separator() + "bin";
+		String path = System.getProperty("java.home") + separator() + "bin";
+		if (path.toLowerCase().contains("program")) {
+			logger.warn("Path to Java is suspicious - Tray App unlikely to work well with System Java");
+		}
+		return path;
 	}
 
 	private String pathToTrayJar() {

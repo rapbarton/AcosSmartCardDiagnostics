@@ -49,6 +49,9 @@ public class AboutPanel extends PopupMenuItemPanel {
 		content.append("<p>Version: ");
 		content.append(getVersion());
 		content.append("</p>");
+		content.append("<p>JVM: ");
+		content.append(getJVMVersion());
+		content.append("</p>");
 		content.append("<p><br/><br/><small>MOHC LTD ");
 		content.append(getCurrentYear());
 		content.append("<br/></small></p>");
@@ -56,7 +59,16 @@ public class AboutPanel extends PopupMenuItemPanel {
 		return new JLabel(content.toString());
 	}
 
-  private static ResourceBundle getBundle() {
+  private String getJVMVersion() {
+  	String rtVersion = System.getProperty("java.runtime.version");
+  	if (!rtVersion.startsWith("1.7.0_")) {
+  		rtVersion = "<font color='red'>"+rtVersion+"</font>";
+  	}
+  	String width = Configuration.getInstance().is64bit()?"<font color='red'>64bit</font>":"32bit";
+		return rtVersion + " " +width;
+	}
+
+	private static ResourceBundle getBundle() {
   	if (bundle == null) {
   		try {
   			bundle = ResourceBundle.getBundle("smartcard");
