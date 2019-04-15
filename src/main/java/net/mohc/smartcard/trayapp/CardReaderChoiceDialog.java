@@ -4,6 +4,7 @@ import java.awt.Component;
 import java.awt.Image;
 import java.util.ArrayList;
 import java.util.List;
+
 import javax.smartcardio.CardTerminal;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.Icon;
@@ -22,8 +23,7 @@ public class CardReaderChoiceDialog {
 	private static final String DEFAULT_CHOICE = "Auto-select";
 	private CardReaderChoiceDialog () {}
 
-	public static String showChoices(List<CardTerminal> terminals, String defaultChoice) {
-		
+	public static String showChoices(List<CardTerminal> terminals, String defaultChoice) { 
 		List<Object> choices = new ArrayList<>();
 		choices.add(DEFAULT_CHOICE);
 		choices.addAll(terminals);
@@ -34,7 +34,7 @@ public class CardReaderChoiceDialog {
 		Object[] message = new Object[1];
 		final JComboBox<Object> choiceField = new JComboBox<>(choices.toArray());
 		choiceField.setRenderer(new CardReaderRenderer());
-		choiceField.setSelectedItem(defaultChoice);
+		choiceField.setSelectedItem(findItemToSelectFromChoices(choices, defaultChoice));
 		final JPanel tp = new JPanel(new RiverLayout(5, 5));
 		tp.add("hfill", new JLabel("<html><b>You may fix which card reader to use or select \""+DEFAULT_CHOICE+"\" to use the recommended reader</b></html>"));
 		tp.add("br", new JLabel("Available readers: "));
@@ -56,14 +56,23 @@ public class CardReaderChoiceDialog {
 			Object selected = choiceField.getSelectedItem();
 			if (selected instanceof CardTerminal) {
 				choice = ((CardTerminal)selected).getName();
-			} 
+			} else if (DEFAULT_CHOICE.equals(selected)) {
+				choice = "";
+			}
 		}
-		if (choice.equals(DEFAULT_CHOICE)) {
-			choice = "";
-		} 
 		return choice;
 	}
 	
+	private static Object findItemToSelectFromChoices(List<Object> choices, String choiceName) {
+		if (choiceName.isEmpty()) return DEFAULT_CHOICE;
+		for (Object choice : choices) {
+			if (choice instanceof CardTerminal && choiceName.equals(((CardTerminal)choice).getName())) {
+				return choice;
+			} 
+		}
+		return choices.get(0);
+	}
+
 	private static class CardReaderRenderer extends DefaultListCellRenderer {
 		private static final long serialVersionUID = 1L;
 	  private transient SmartCardController controller = SmartCardController.getInstance();
