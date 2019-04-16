@@ -76,14 +76,14 @@ public class BasicCommsService {
 	
 	protected void monitorTestCommand(final TestCommand testCommand) {
 		if (!testCommand.isActive() && isTimeToCheck(testCommand.getScheduledCheckTime())) {
-			logger.info("Time to check connection by sending a test command");
+			logger.debug("Time to check connection by sending a test command");
 			testCommand.create();
 			testCommand.setTimeSentTestMessage(timeNow());
 			sendCommand(testCommand.get(), new TAResponseHandler(){
 				@Override
 				public void messageResponse(Map<String, String> responses) {
 					if (testCommand.isActive()) {
-						logger.info("Test command response received - all is well");
+						logger.debug("Test command response received - all is well");
 						testCommand.clear();
 						testCommand.setScheduledCheckTime(30l + timeNow());
 					}
@@ -261,6 +261,10 @@ public class BasicCommsService {
 		sendCommand(new TACommand(TACommand.LOGIN), handler);
 	}
 
+	public void doQuitSessionCommand(TAResponseHandler handler) {
+		sendCommand(new TACommand(TACommand.QUIT, "signout"), handler);
+	}
+
 	public String[] doCardPresentCommand() {
 		String[] reply = new String[2];
 		Map<String, String> response = sendCommandAndWait(new TACommand(TACommand.CARD_STATUS));
@@ -283,7 +287,7 @@ public class BasicCommsService {
 			throw new SmartCardException("Error: No response");
 		}
 		String primaryResponse = response.get(KEY_PRIMARY_RESPONSE);
-		if (primaryResponse.startsWith("Error:")) {
+		if (primaryResponse.toLowerCase().startsWith("error:")) {
 			throw new SmartCardException(primaryResponse);
 		} else {
 			return primaryResponse;

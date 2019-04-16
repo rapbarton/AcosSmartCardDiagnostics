@@ -136,7 +136,8 @@ public class SmartCardCommandProcessor implements CommandProcessor {
 			String encodedCertificate = controller.getCertificateEncoded();
 			responsePacket.addResponse(KEY_ENCODED, encodedCertificate);
 		} else {
-			responsePacket.setError("Failed to log in");
+			String reason = controller.getCertificateStatus();
+			responsePacket.setError("Failed to log in: " + reason);
 		}
   	return responsePacket;
 	}

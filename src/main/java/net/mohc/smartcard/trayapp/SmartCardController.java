@@ -124,8 +124,7 @@ public class SmartCardController {
 		CardTerminal proposed = findBestTerminalOrNull();
 		if (proposed != null) {
 			changeTerminal(proposed);
-		} else if (!status.getCurrentTerminal().equals(TERMINAL_TYPE_NONE) 
-				    && !status.getCurrentTerminal().equals(TERMINAL_TYPE_DUMMY)) {
+		} else if (!status.getCurrentTerminal().equals(TERMINAL_TYPE_NONE)) {
 			reset();
 		} 
 		if (status.getCurrentStatus() == NOT_INITIALISED) {
@@ -325,7 +324,7 @@ public class SmartCardController {
 			selectAppropriateDll();
 			status.setCurrentStatus(NO_TERMINAL);
 		} else if (null == selectedCardTerminal || !selectedCardTerminal.getName().equals(terminal.getName())) {
-			status.setCurrentStatus(NO_TERMINAL);
+			reset();
 			selectedCardTerminal = terminal;
 			if (isTerminalACOS(terminal)) {
 				status.setCurrentTerminal(TERMINAL_TYPE_ACOS);

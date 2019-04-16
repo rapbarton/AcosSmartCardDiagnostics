@@ -19,14 +19,45 @@ import net.mohc.smartcard.utils.ImageHelper;
 import net.mohc.smartcard.utils.RiverLayout;
 
 public class PinDialog {
-	private PinDialog () {}
-
+	private PinDialog () {
+		initialise();
+	}	
+	private static PinDialog instance = null;
+	private static final String okOption = "Unlock";
+	
+	private JOptionPane pane = null;  
+	private JDialog dialogue = null;
+	private JPasswordField pinField;
+	private ImageHelper imageHelper;
+	
 	public static char[] showPinDialog() {
-		ImageHelper imageHelper = new ImageHelper();
-		String okOption = "Unlock";
+		if (null == instance) {
+			instance = new PinDialog();
+		}		
+		if (instance.dialogue.isVisible()) {
+			instance.dialogue.setVisible(false);
+		}		
+		return instance.waitForPin();
+	}
+	
+	private char[] waitForPin() {
+		pinField.setText("");
+		dialogue.setVisible(true);
+		boolean result = okOption.equals(instance.pane.getValue());
+		char [] pin;
+		if (result) {
+			pin = pinField.getPassword();
+		} else {
+			pin = null;
+		}
+		return pin;
+	}
+	
+	private void initialise() {
+		imageHelper = new ImageHelper();
 		Object[] options = { okOption };
 		Object[] message = new Object[1];
-		final JPasswordField pinField = new JPasswordField(10);
+		pinField = new JPasswordField(10);
 		final JPanel tp = new JPanel(new RiverLayout(5, 5));
 		tp.add("hfill", new JLabel("<html><b>Enter card pin<br>and click \"Unlock\"</b></html>"));
 		tp.add("", pinField);
@@ -37,8 +68,8 @@ public class PinDialog {
     tmpFrame.setIconImage(imageCard);
     
 		Icon icon = imageHelper.getIcon("Padlock32");
-		JOptionPane pane = new JOptionPane(message, JOptionPane.QUESTION_MESSAGE, JOptionPane.DEFAULT_OPTION, icon , options, options[0]);  
-		final JDialog dialogue = pane.createDialog(tmpFrame, "Pin required");  
+		pane = new JOptionPane(message, JOptionPane.QUESTION_MESSAGE, JOptionPane.DEFAULT_OPTION, icon , options, options[0]);  
+		dialogue = pane.createDialog(tmpFrame, "Pin required");  
 		dialogue.setAlwaysOnTop(true);
 
 		pinField.addAncestorListener(new AncestorListener() {
@@ -82,15 +113,6 @@ public class PinDialog {
 			public void componentHidden(ComponentEvent e) {/*Not interested*/}
 		});
 		
-		dialogue.setVisible(true);
-		boolean result = okOption.equals(pane.getValue());
-
-		char [] pin;
-		if (result) {
-			pin = pinField.getPassword();
-		} else {
-			pin = null;
-		}
-		return pin;
 	}
+	
 }

@@ -98,7 +98,7 @@ public class SmartCardKeyStore {
 			ks.load(null, null);
 			loaded = true;
 			loadPrivateKeyAndCertChainWithChoice(null);
-			status = "Card OK";
+			status = "Certificate Loaded";
 			certificateCN = getCertificateCommonName();
 		} catch (KeyStoreException kse) {
 			reportFatalProblemAndGiveUp("PKCS11KeyStoreException: " + kse.getMessage());
@@ -132,7 +132,7 @@ public class SmartCardKeyStore {
 			ks = keystore;
 			loaded = true;
 			loadPrivateKeyAndCertChainWithChoice(p12Password);
-			status = "Card OK";
+			status = "Certificate Loaded";
 			certificateCN = getCertificateCommonName();
 
 		} catch (CertificateException | IOException e) {
@@ -275,7 +275,7 @@ public class SmartCardKeyStore {
 		} else {
 			try {
 				currentX509Certificate.checkValidity(new Date());
-				status = certificateCN;
+				status = "Certificate Loaded";
 				lastValidityCheck = true;
 			} catch (CertificateExpiredException e) {
 				status = "Card expired";
@@ -458,6 +458,7 @@ public class SmartCardKeyStore {
 			response.put(CERT_DETAIL_REGISTRATION,getPresciberRegistration());
 			response.put(CERT_DETAIL_CN,certificateCN);
 			response.put(CERT_IS_VALID, lastValidityCheck?TRUE:FALSE);
+			response.put(CERT_STATUS, status);
 		} 
 		return response;
 	}
