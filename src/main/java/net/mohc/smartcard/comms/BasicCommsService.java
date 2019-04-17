@@ -13,7 +13,9 @@ import static net.mohc.smartcard.trayapp.SmartCardConstants.*;
 
 public class BasicCommsService {
 	private static final int DEFAULT_PORT = 9311;
-	private static final long DEFAULT_TIMEOUT = 10;
+	private static final long DEFAULT_TIMEOUT = 20;
+	private static final long INITTIAL_TEST_COMMS_COMMAND_TIME = 10;
+	private static final long SCHEDULED_TEST_COMMS_COMMAND_TIME = 30;
 	private static BasicCommsService singletonInstance = null;
 	private Logger logger;
 	private CommsClient rcc;
@@ -85,7 +87,8 @@ public class BasicCommsService {
 					if (testCommand.isActive()) {
 						logger.debug("Test command response received - all is well");
 						testCommand.clear();
-						testCommand.setScheduledCheckTime(30l + timeNow());
+						testCommand.setScheduledCheckTime(SCHEDULED_TEST_COMMS_COMMAND_TIME + timeNow());
+						SmartCardApplicationLauncher.ping();
 					}
 				}
 				@Override
@@ -109,7 +112,7 @@ public class BasicCommsService {
 			rcc.connect();
 			logger.info("Connected");
 			testCommand.clear();
-			testCommand.setScheduledCheckTime(timeNow() + 2);
+			testCommand.setScheduledCheckTime(timeNow() + INITTIAL_TEST_COMMS_COMMAND_TIME);
 		} catch (CommsException e) {
 			logger.info("Test connection failed, trying to launch app");
 			SmartCardApplicationLauncher.launch();
@@ -176,6 +179,7 @@ public class BasicCommsService {
 			public void messageResponse(Map<String, String> responses) {
 				synchronized (retval) {
 					logger.debug("Message received (for \"" + command.getCommand() + "\")");
+					SmartCardApplicationLauncher.ping();
 					if (command.getCommand().equals("Sign")) {
 						logger.debug("PRIMARY RXD HANDLER:" + responses.get(KEY_PRIMARY_RESPONSE));
 					}

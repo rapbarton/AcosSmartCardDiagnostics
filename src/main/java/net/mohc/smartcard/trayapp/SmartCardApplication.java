@@ -12,6 +12,7 @@ import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
+
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
@@ -28,6 +29,7 @@ import net.mohc.smartcard.utils.ImageHelper;
 
 
 public class SmartCardApplication {
+	public static final String APPLICATION_STARTED_MESSAGE = "Smart Card Application started";
 	private static final Color MENU_HIGHLIGHT_COLOUR = new Color(0x91C9F7);
 	private Logger logger;
 	private GraphicsToolkit graphicesToolkit;
@@ -64,7 +66,8 @@ public class SmartCardApplication {
 		initialiseTray();
 		registerAsListener();
 		controller.initialise();
-		logger.info("Smart Card Application started");
+		System.out.println(APPLICATION_STARTED_MESSAGE);//This line is needed so that the launcher can detect application has started
+		logger.info(APPLICATION_STARTED_MESSAGE);
 	}
 	
 	private void initialiseTray () {

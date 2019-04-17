@@ -7,11 +7,13 @@ import org.apache.log4j.Logger;
 
 public class SmartCardApplicationLauncher extends Thread {
 	private static final long MIN_SECONDS_BEFORE_RETRY_STARTUP_COMMAND = 60;
+	private static final long SECONDS_TO_WAIT_FOR_APP_STARTUP = 40;
 	private Logger logger;
 	private long lastAttempt = 0;
 	private static SmartCardApplicationLauncher singletonInstance = null;
 	private boolean running = false;
 	private boolean requestRestart = false;
+	private boolean pingRxd = false;
 
 	/**
 	 * This will dumbly attempt to launch the tray app whenever called. It will ignore request if within 60s of last attempt that appeared to run the command line successfully.
@@ -44,6 +46,10 @@ public class SmartCardApplicationLauncher extends Thread {
 			if (!running && dueForAnAttempt()) {
 				running = launchAttempt();
 			}
+			if (!running && pingRxd) {
+				logger.debug("A command has been successfully processed - assume application now started");
+				pingRxd = false;
+			}
 			try {
 				Thread.sleep(1000l);
 			} catch (InterruptedException e) {
@@ -70,17 +76,31 @@ public class SmartCardApplicationLauncher extends Thread {
 			InputStreamReader er = new InputStreamReader(pr.getErrorStream());
       StringBuilder stdLine = new StringBuilder();
       StringBuilder errLine = new StringBuilder();
-      long timeout = timeNow() + 20;
+      long timeout = timeNow() + SECONDS_TO_WAIT_FOR_APP_STARTUP;
+      boolean timeoutTriggered = false;
+      boolean detectedStdoutMsg = false;
+      pingRxd = false;
       do {
-      	started = readStandardOut(in, stdLine);
+      	detectedStdoutMsg = readStandardOut(in, stdLine);
       	readErrorOut(er, errLine);
-      } while (timeNow() < timeout && !started);
+      	timeoutTriggered = timeNow() >= timeout;
+      	started = detectedStdoutMsg || pingRxd;
+      } while (!timeoutTriggered && !started);
+      if (pingRxd) {
+      	logger.debug("Application start detected by ping");
+      } else if (timeoutTriggered) {
+      	logger.debug("Application startup detection timeout");
+      } else if (detectedStdoutMsg) {
+      	logger.debug("Application startup detected by stdout message");
+      } else {
+      	logger.warn("Application startup broken");
+      }
 		} catch (IOException e) {
 			logger.error("Failed to execute command to start tray application");
 		} catch (IllegalArgumentException e) {
 			logger.error("Command to start tray application was invalid");
 		}
-		lastAttempt = timeNow();
+		resetNextRetryTimer();
 		return started;
 	}
 	
@@ -92,7 +112,7 @@ public class SmartCardApplicationLauncher extends Thread {
   			String line = stdLine.toString();
       	stdLine.setLength(0);
       	logger.info(line.trim());
-      	if (line.contains("Smart Card Application started")) {
+      	if (line.contains(SmartCardApplication.APPLICATION_STARTED_MESSAGE + "XXXXXX")) {
       		started = true;
       	}
   		} else {
@@ -159,6 +179,18 @@ public class SmartCardApplicationLauncher extends Thread {
 			trayJar = base + separator() + "SmartCardApplication.jar";
 		}
 		return trayJar;
+	}
+
+	private void resetNextRetryTimer() {
+		lastAttempt = timeNow();
+	}
+	
+	/**
+	 * This method called from good receipt of test message - i.e. if communications is working then we can assume app has started
+	 * This is to make the startup robust against not seeing the standard output message at tray app startup
+	 */
+	public static void ping() {
+		singletonInstance.pingRxd = true;
 	}
 
 }
