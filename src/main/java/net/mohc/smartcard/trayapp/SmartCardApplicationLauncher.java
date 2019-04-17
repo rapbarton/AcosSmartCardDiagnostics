@@ -3,11 +3,17 @@ package net.mohc.smartcard.trayapp;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.Calendar;
+
 import org.apache.log4j.Logger;
 
 public class SmartCardApplicationLauncher extends Thread {
 	private static final long MIN_SECONDS_BEFORE_RETRY_STARTUP_COMMAND = 60;
 	private static final long SECONDS_TO_WAIT_FOR_APP_STARTUP = 40;
+	private static final String FILENAME_SMARTCARD_JAR = "smartcard.jar";
+	private static final String[] ALL_LIBRARY_JAR_FILENAMES = {FILENAME_SMARTCARD_JAR, 
+		"jackson-core.jar", "jackson-databind.jar", "jackson-annotations.jar", "log4j.jar"};
+
+	private static final boolean EXECUTABLE_JAR_FORMAT = false;
 	private Logger logger;
 	private long lastAttempt = 0;
 	private static SmartCardApplicationLauncher singletonInstance = null;
@@ -25,7 +31,7 @@ public class SmartCardApplicationLauncher extends Thread {
 		singletonInstance.tryToStartCardTrayApplication();
 	}
 	
-	private SmartCardApplicationLauncher (String name) {
+	protected SmartCardApplicationLauncher (String name) {
 		super(name);
 		setDaemon(true);
 		running = false;
@@ -69,7 +75,7 @@ public class SmartCardApplicationLauncher extends Thread {
 		boolean started = false;
   	Runtime rt = Runtime.getRuntime();
 		try {
-			String commandLine = getStartTrayCommand();
+			String commandLine = getStartTrayCommand(EXECUTABLE_JAR_FORMAT);
 			logger.info("Running command # " + commandLine);
 			final Process pr = rt.exec(commandLine);
 			InputStreamReader in = new InputStreamReader(pr.getInputStream());
@@ -144,13 +150,51 @@ public class SmartCardApplicationLauncher extends Thread {
 		return (timeNow() - lastAttempt) > (MIN_SECONDS_BEFORE_RETRY_STARTUP_COMMAND);
 	}
 
-	protected String getStartTrayCommand() {
+	protected String getStartTrayCommand(boolean isExecutableJarFormat) {
+		if (isExecutableJarFormat) {
+			return getStartTrayCommandForExecutableJar();
+		} else {
+			return getStartTrayCommandForSimpleJar();
+		}
+	}
+	
+	private String getStartTrayCommandForSimpleJar() {
+		StringBuilder command = new StringBuilder();
+		command.append(pathToJava());
+		command.append(separator());
+		command.append("java -classpath ");
+		command.append(allJars());
+		command.append(" -Ddisable.error.popup=true ");
+		command.append(predefinedPathToDll());
+		command.append(" ");
+		command.append(SmartCardApplication.class.getCanonicalName());
+		return command.toString();
+	}
+
+	private String allJars() {
+		String lib = pathToJars();
+		StringBuilder classpath = new StringBuilder();
+		String pathSeparator = System.getProperty("path.separator");
+		boolean firstOne = true;
+		for(String jarFilename:ALL_LIBRARY_JAR_FILENAMES) {
+			if (firstOne) {
+				firstOne = false;
+			} else {
+				classpath.append(pathSeparator);	
+			}			
+			classpath.append(lib);
+			classpath.append(jarFilename);
+		}
+		return classpath.toString();
+	}
+
+	private String getStartTrayCommandForExecutableJar() {
 		StringBuilder command = new StringBuilder();
 		command.append(pathToJava());
 		command.append(separator());
 		command.append("java -jar -Ddisable.error.popup=true ");
 		command.append(predefinedPathToDll());
-		command.append(pathToTrayJar());
+		command.append(pathAndFilenameToTrayJar());
 		return command.toString();
 	}
 
@@ -172,13 +216,22 @@ public class SmartCardApplicationLauncher extends Thread {
 		return path;
 	}
 
-	private String pathToTrayJar() {
-		String trayJar = System.getProperty("smart.card.jar", "");
-		if (trayJar.isEmpty()) {
+	private String pathAndFilenameToTrayJar() {
+		String trayJarPath = System.getProperty("smart.card.jar", "");
+		if (trayJarPath.isEmpty()) {
 			String base = System.getProperty("user.dir");
-			trayJar = base + separator() + "SmartCardApplication.jar";
+			trayJarPath = base + separator() + FILENAME_SMARTCARD_JAR;
 		}
-		return trayJar;
+		return trayJarPath;
+	}
+
+	private String pathToJars() {
+		String trayJarPath = System.getProperty("location.lib.jar", "");
+		if (trayJarPath.isEmpty()) {
+			String base = System.getProperty("user.dir");
+			trayJarPath = base + separator() + "lib" + separator();
+		}
+		return trayJarPath;
 	}
 
 	private void resetNextRetryTimer() {

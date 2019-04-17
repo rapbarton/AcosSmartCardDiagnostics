@@ -2,9 +2,25 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>net.mohc</groupId>
   <artifactId>smartcard</artifactId>
-  <version>0.0.1-SNAPSHOT</version>
+  <version>1.0.0</version>
   <name>SmartCard</name>
-  <description>Experimental</description>
+  <description>Tray Application for Smart Cards</description>
+  
+  <distributionManagement>
+		<snapshotRepository>
+			<id>nexus</id>
+			<name>Snapshots Repo on Selenium</name>
+			<url>http://selenium:8088/nexus/content/repositories/snapshots</url>
+			<layout>default</layout>
+		</snapshotRepository>
+		<repository>
+			<id>nexus</id>
+			<name>Releases Repo on Selenium</name>
+			<url>http://selenium:8088/nexus/content/repositories/releases/</url>
+			<layout>default</layout>
+		</repository>
+	</distributionManagement>
+  
   <build>
 
 			<sourceDirectory>src</sourceDirectory>
@@ -23,13 +39,8 @@
 			</resources>
 
   		<plugins>
-<!--			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-scm-plugin</artifactId>
-				<version>1.9.2</version>
-			</plugin> -->
+
 			<!-- Tell maven to compile using 1.7 -->
-			
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
@@ -41,21 +52,9 @@
 			</plugin>
 			
 			<plugin>
-	      <artifactId>maven-assembly-plugin</artifactId>
-	      <configuration>
-	        <archive>
-	          <manifest>
-	            <mainClass>net.mohc.smartcard.trayapp.SmartCardApplication</mainClass>
-	          </manifest>
-	        </archive>
-	        <descriptorRefs>
-	          <descriptorRef>jar-with-dependencies</descriptorRef>
-	        </descriptorRefs>
-	        <appendAssemblyId>false</appendAssemblyId>
-          <overWriteReleases>false</overWriteReleases>
-          <overWriteSnapshots>false</overWriteSnapshots>
-          <overWriteIfNewer>true</overWriteIfNewer>
-	      </configuration>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-scm-plugin</artifactId>
+				<version>1.9.2</version>
 	    </plugin>
 			
   	</plugins>  
