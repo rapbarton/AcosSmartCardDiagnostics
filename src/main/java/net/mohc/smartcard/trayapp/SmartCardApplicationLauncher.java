@@ -112,7 +112,7 @@ public class SmartCardApplicationLauncher extends Thread {
   			String line = stdLine.toString();
       	stdLine.setLength(0);
       	logger.info(line.trim());
-      	if (line.contains(SmartCardApplication.APPLICATION_STARTED_MESSAGE + "XXXXXX")) {
+      	if (line.contains(SmartCardApplication.APPLICATION_STARTED_MESSAGE)) {
       		started = true;
       	}
   		} else {
