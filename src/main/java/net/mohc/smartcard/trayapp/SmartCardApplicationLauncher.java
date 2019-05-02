@@ -1,5 +1,6 @@
 package net.mohc.smartcard.trayapp;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.Calendar;
@@ -164,7 +165,9 @@ public class SmartCardApplicationLauncher extends Thread {
 		command.append(separator());
 		command.append("java -classpath ");
 		command.append(allJars());
+//		command.append(" -Ddisable.error.popup=true -Djava.security.debug=sunpkcs11 ");
 		command.append(" -Ddisable.error.popup=true ");
+		command.append(pathToLog4jProperties());
 		command.append(predefinedPathToDll());
 		command.append(" ");
 		command.append(SmartCardApplication.class.getCanonicalName());
@@ -181,9 +184,15 @@ public class SmartCardApplicationLauncher extends Thread {
 				firstOne = false;
 			} else {
 				classpath.append(pathSeparator);	
-			}			
-			classpath.append(lib);
-			classpath.append(jarFilename);
+			}
+			String jarFilePath = findJarFrom(lib, jarFilename);
+			if (jarFilePath.isEmpty()) {
+//				logger.warn("Library file " + jarFilename + " was not found on path " + lib);
+				classpath.append(lib);
+				classpath.append(jarFilename);
+			} else {
+				classpath.append(jarFilePath);
+			}
 		}
 		return classpath.toString();
 	}
@@ -192,14 +201,33 @@ public class SmartCardApplicationLauncher extends Thread {
 		StringBuilder command = new StringBuilder();
 		command.append(pathToJava());
 		command.append(separator());
+//		command.append("java -jar -Ddisable.error.popup=true -Djava.security.debug=sunpkcs11 ");
 		command.append("java -jar -Ddisable.error.popup=true ");
+		command.append(pathToLog4jProperties());
 		command.append(predefinedPathToDll());
 		command.append(pathAndFilenameToTrayJar());
 		return command.toString();
 	}
 
+	/**
+	 * Default is to assume being launched for OPMS in which case log4j config is in working directory conf
+	 * @return
+	 */
+	private String pathToLog4jProperties() {
+		String configuredPathToLog4jConfig = System.getProperty("smartcard.location.log4j","");
+		if (configuredPathToLog4jConfig.isEmpty()) {
+			String base = System.getProperty("user.dir");
+			configuredPathToLog4jConfig = base + separator() + "conf" + separator();
+			File test = new File(configuredPathToLog4jConfig);
+			if (!test.exists() || !test.isDirectory()) {
+				return "";
+			}
+		}
+		return "-Dlocation.log4j=" + configuredPathToLog4jConfig + " ";
+	}
+
 	private String predefinedPathToDll() {
-		String systemDefinePathToDll = System.getProperty("location.dll","");
+		String systemDefinePathToDll = System.getProperty("smartcard.location.dll","");
 		if (systemDefinePathToDll.isEmpty()) return "";
 		return "-Dlocation.dll=" + systemDefinePathToDll + " ";
 	}
@@ -209,7 +237,10 @@ public class SmartCardApplicationLauncher extends Thread {
 	}
 
 	private String pathToJava() {
-		String path = System.getProperty("java.home") + separator() + "bin";
+		String path = System.getProperty("smartcard.location.java", "");
+		if (path.trim().isEmpty()) {
+			path = System.getProperty("java.home") + separator() + "bin";
+		}
 		if (path.toLowerCase().contains("program")) {
 			logger.warn("Path to Java is suspicious - Tray App unlikely to work well with System Java");
 		}
@@ -217,7 +248,7 @@ public class SmartCardApplicationLauncher extends Thread {
 	}
 
 	private String pathAndFilenameToTrayJar() {
-		String trayJarPath = System.getProperty("smart.card.jar", "");
+		String trayJarPath = System.getProperty("smartcard.location.jar", "");
 		if (trayJarPath.isEmpty()) {
 			String base = System.getProperty("user.dir");
 			trayJarPath = base + separator() + FILENAME_SMARTCARD_JAR;
@@ -226,7 +257,7 @@ public class SmartCardApplicationLauncher extends Thread {
 	}
 
 	private String pathToJars() {
-		String trayJarPath = System.getProperty("location.lib.jar", "");
+		String trayJarPath = System.getProperty("smartcard.location.lib.jars", "");
 		if (trayJarPath.isEmpty()) {
 			String base = System.getProperty("user.dir");
 			trayJarPath = base + separator() + "lib" + separator();
@@ -243,7 +274,48 @@ public class SmartCardApplicationLauncher extends Thread {
 	 * This is to make the startup robust against not seeing the standard output message at tray app startup
 	 */
 	public static void ping() {
-		singletonInstance.pingRxd = true;
+		if (null != singletonInstance) {
+			singletonInstance.pingRxd = true;
+		}
 	}
+
+	private String findJarFrom(String libDir, String jarFilename) {
+		if (FILENAME_SMARTCARD_JAR.equals(jarFilename)) {
+			String trayJarPath = System.getProperty("smartcard.location.jar", "");
+			if (!trayJarPath.isEmpty()) {
+				return trayJarPath;
+			}
+		}		
+		String filePath = ensureTrailingSeparator(libDir) + jarFilename;
+		File jarFile = new File(filePath);
+		if (jarFile.exists()) {
+			return filePath;
+		}
+		File dir = new File(libDir);
+		if (dir.isDirectory()) {
+			File[] all = dir.listFiles();
+			for (File file : all) {
+				if (file.isDirectory()) {
+					String subDir = libDir + file.getName() +  separator();
+					String jarPath = findJarFrom(subDir, jarFilename);
+					int len = jarPath.length();
+					if (len > 0 && len < 2048) {
+						logger.info("Library file " + jarFilename + " was found in " + subDir + separator());
+						return jarPath;
+					}
+				}
+			}
+		}
+		return "";
+	}
+
+	private String ensureTrailingSeparator(String path) {
+		if (path.isEmpty()) return path;
+		String sep = separator();
+		if (path.endsWith(sep)) return path;
+		return path + sep;
+	}
+	
+
 
 }

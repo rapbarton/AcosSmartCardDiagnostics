@@ -62,7 +62,7 @@ public class Configuration {
 	public boolean isWindows() {
 		String systemOs = System.getProperty("os.name");
 	  if (systemOs != null) {
-	     return systemOs.contains("win");
+	     return systemOs.toLowerCase().contains("win");
 	  }
 	  return false;
 	}

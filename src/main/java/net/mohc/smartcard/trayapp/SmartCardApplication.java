@@ -21,6 +21,7 @@ import javax.swing.MenuElement;
 import javax.swing.UIManager;
 
 import org.apache.log4j.Logger;
+import org.apache.log4j.PropertyConfigurator;
 
 import net.mohc.smartcard.comms.CommsController;
 import net.mohc.smartcard.comms.CommsException;
@@ -39,13 +40,18 @@ public class SmartCardApplication {
 	private JPopupMenu trayPopupMenu;
 	private MouseListener highlighter;
 	boolean viewInitialised = false;
-	
+
+	/**	
+	 * Entry point for Tray Application
+	 */
 	public static void main(String[] args) {
+		configureLog4j();
 		boolean quietMode = args.length >= 1 && "-q".equals(args[0]);
 		if (System.getProperty("disable.error.popup", "false").equalsIgnoreCase("true")) {
 			quietMode = true;
 		}
 		Logger.getLogger(SmartCardApplication.class).info("disable.error.popup = " + quietMode);
+		checkSecurityDebug();		
 		try {
 			new SmartCardApplication();
 		} catch (Exception e) {
@@ -203,4 +209,50 @@ public class SmartCardApplication {
 		String statusSummary = controller.getStatus().getStatusAsText();
 		trayIcon.setToolTip(statusSummary);
 	}	
+
+	/**
+	 * Suggestion to deal with occasional PKCS11 keystore instantiation - looks like switching debug on ensures exception is not thrown.<br/>
+	 * See <a href=https://stackoverflow.com/questions/25306191/pkcs11-instantiation-problems>StackOverflow</a><br/>
+	 * Needs: -Djava.security.debug=sunpkcs11 (Note: Can't be set at runtime)<br/>	 
+	 * See <a href=https://bugs.openjdk.java.net/browse/JDK-8039912>OpenJDK bug</a>. This issue is solved in OpenJDK, but maybe it is still unresolved in Oracle JDK.
+	 */
+	public static void checkSecurityDebug() {
+		String value = System.getProperty("java.security.debug","");
+		if (value.trim().isEmpty()) {
+			Logger.getLogger(SmartCardApplication.class).warn("Recommend JVM parameter should be set: java.security.debug=sunpkcs11");
+		}
+	}
+
+	private static void configureLog4j() {
+		//setting value for "logs.dir" to overwrite the ${logs.dir} in the corresponding log4j.xml
+		String sHome = ensureTrailingSeparator(System.getProperty("user.dir", "."+separator()+"opms"));
+		String logFilePath = sHome + "logs";
+		System.setProperty("logs.dir", logFilePath);
+
+		String value = System.getProperty("location.log4j","");
+		if (!value.trim().isEmpty()) {
+			String fullPath = value;
+			if (!value.endsWith(".properties")) {
+				fullPath = ensureTrailingSeparator(value) + "log4j-smartcard.properties";
+			}
+			System.out.println("Log4j config = " + fullPath);
+			PropertyConfigurator.configure(fullPath);
+		}
+
+		System.out.println("Log output path = " + logFilePath);
+	}
+
+	private static String ensureTrailingSeparator(String path) {
+		if (path.isEmpty()) return path;
+		String sep = separator();
+		if (path.endsWith(sep)) return path;
+		return path + sep;
+	}
+	
+	private static String separator() {
+		return System.getProperty("file.separator");
+	}
+
+
+
 }

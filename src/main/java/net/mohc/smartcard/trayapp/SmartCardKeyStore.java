@@ -71,7 +71,7 @@ public class SmartCardKeyStore {
 	public SmartCardKeyStore(String pkcs11LibraryFile) {
 		logger = Logger.getLogger(this.getClass());
 		session = new Session();
-		String pkcs11ConfigSettings = "name = SmartCard1 " + "library = " + pkcs11LibraryFile;
+		String pkcs11ConfigSettings = "name = PrescribingCard\n" + "library = " + pkcs11LibraryFile;
 		loaded = false;
 		try {
 			byte[] pkcs11ConfigBytes = pkcs11ConfigSettings.getBytes();
@@ -101,6 +101,7 @@ public class SmartCardKeyStore {
 			status = "Certificate Loaded";
 			certificateCN = getCertificateCommonName();
 		} catch (KeyStoreException kse) {
+			SmartCardApplication.checkSecurityDebug();
 			reportFatalProblemAndGiveUp("PKCS11KeyStoreException: " + kse.getMessage());
 		} catch (NoSuchAlgorithmException e) {
 			reportFatalProblemAndGiveUp("NoSuchAlgorithmException: " + e.getMessage());

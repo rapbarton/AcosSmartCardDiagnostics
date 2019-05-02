@@ -131,6 +131,7 @@ public class CommsClient {
         		scanAndProcessReplies(sbDataIn, rm);
         	}
         } catch (Exception e) {
+        	e.printStackTrace();
           logger.info("Socket error - " + e.getMessage());
           parent.disconnect();
         }
