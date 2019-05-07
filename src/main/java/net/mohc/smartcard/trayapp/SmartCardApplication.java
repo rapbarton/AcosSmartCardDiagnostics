@@ -28,6 +28,7 @@ import net.mohc.smartcard.comms.CommsException;
 import net.mohc.smartcard.utils.GraphicsToolkit;
 import net.mohc.smartcard.utils.ImageHelper;
 
+import static net.mohc.smartcard.trayapp.SmartCardConstants.DEFAULT_PORT;
 
 public class SmartCardApplication {
 	public static final String APPLICATION_STARTED_MESSAGE = "Smart Card Application started";
@@ -65,7 +66,7 @@ public class SmartCardApplication {
 	
 	private SmartCardApplication () throws CommsException {
 		logger = Logger.getLogger(this.getClass());
-		CommsController.getInstance().startListening(9311, new SmartCardCommandProcessor());
+		CommsController.getInstance().startListening(DEFAULT_PORT, new SmartCardCommandProcessor());
 		graphicesToolkit = GraphicsToolkit.getInstance();
 		controller = SmartCardController.getInstance();
 		imageHelper = new ImageHelper();

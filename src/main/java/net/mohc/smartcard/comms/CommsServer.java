@@ -1,7 +1,7 @@
 package net.mohc.smartcard.comms;
+import static net.mohc.smartcard.trayapp.SmartCardConstants.DEFAULT_PORT;
 
 public class CommsServer {
-  private static final int DEFAULT_PORT = 9311;
   private int portNumber = DEFAULT_PORT;
   private CommsServerSocket socket;
 

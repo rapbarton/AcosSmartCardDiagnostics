@@ -12,7 +12,6 @@ import org.apache.log4j.Logger;
 import static net.mohc.smartcard.trayapp.SmartCardConstants.*;
 
 public class BasicCommsService {
-	private static final int DEFAULT_PORT = 9311;
 	private static final long DEFAULT_TIMEOUT = 20;
 	private static final long INITTIAL_TEST_COMMS_COMMAND_TIME = 10;
 	private static final long SCHEDULED_TEST_COMMS_COMMAND_TIME = 30;
